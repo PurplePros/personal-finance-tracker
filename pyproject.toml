@@ -20,5 +20,21 @@ module-name = "guru"
 module-root = "backend/src"
 namespace = true
 
+[dependency-groups]
+dev = [
+    "ruff>=0.15.16",
+    "ty>=0.0.44",
+]
+
+[tool.ruff]
+src = ["backend/src"]
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+
+[tool.ty.src]
+include = ["backend/src"]
+
 [project.scripts]
 guru = "guru.api.main:main"
