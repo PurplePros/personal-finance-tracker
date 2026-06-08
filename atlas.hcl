@@ -1,7 +1,7 @@
 data "external_schema" "sqlalchemy" {
   program = [
     "atlas-provider-sqlalchemy",
-    "--path", "./backend/src/guru/api/models",
+    "--path", "./backend/src",
     "--dialect", "sqlite"
   ]
 }

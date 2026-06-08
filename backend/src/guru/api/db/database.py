@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from guru.api.config import settings
+from guru.api.db.config import settings
 
 engine = create_engine(
     settings.database_url,
