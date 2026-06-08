@@ -10,6 +10,8 @@ readme = "README.md"
 requires-python = ">=3.14.5"
 dependencies = [
     "atlas-provider-sqlalchemy>=0.5.0",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
     "plaid-python>=39.2.0",
     "pydantic-settings>=2.14.1",
     "sqlalchemy>=2.0",
@@ -39,4 +41,4 @@ select = ["E", "F", "I", "N", "W"]
 include = ["backend/src"]
 
 [project.scripts]
-guru = "guru.api.main:main"
+guru = "guru.api.app:main"
