@@ -8,10 +8,12 @@ from guru.api.settings import Settings
 
 
 def get_session(request: Request) -> Generator[Session, None, None]:
+    """Provide a per-request database session from the app engine."""
     with Session(request.app.state.engine) as session:
         yield session
 
 
 def get_plaid_service() -> PlaidService:
+    """Provide a PlaidService configured from app settings."""
     settings = Settings()
     return PlaidService.default(settings.plaid_client_id, settings.plaid_secret)

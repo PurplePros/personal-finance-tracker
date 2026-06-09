@@ -13,6 +13,7 @@ PLAID_TYPE_MAP: dict[tuple[str, str], AccountType] = {
 
 
 def _map_account_type(plaid_type: str, plaid_subtype: str) -> AccountType:
+    """Map Plaid type/subtype to our AccountType enum; default to Chequing."""
     return PLAID_TYPE_MAP.get(
         (plaid_type, plaid_subtype),
         AccountType.CHEQUING,
@@ -20,6 +21,7 @@ def _map_account_type(plaid_type: str, plaid_subtype: str) -> AccountType:
 
 
 def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
+    """Fetch accounts from Plaid for every institution and upsert them."""
     institutions = InstitutionRepository().list(session)
     results = []
     for institution in institutions:

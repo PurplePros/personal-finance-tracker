@@ -13,4 +13,5 @@ def sync(
     session: Session = Depends(get_session),
     plaid_service: PlaidService = Depends(get_plaid_service),
 ):
+    """Sync accounts from Plaid for all linked institutions."""
     return sync_all(session, plaid_service)
