@@ -1,7 +1,7 @@
 import uuid
 
 from sqlalchemy.orm import declared_attr
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field, SQLModel
 
 import guru.api.models as guru
 
@@ -18,21 +18,30 @@ class BaseSQLModel(SQLModel):
     )
 
     @declared_attr.directive
-    def __tablename__(cls) -> str:
+    def __tablename__(self, cls) -> str:
         return cls.__name__.lower()
+
 
 class Institution(BaseSQLModel, table=True):
     """A linked financial institution storing its Plaid credentials."""
 
-    name: guru.Institution = Field(min_length=1, description="Display name of the institution")
-    plaid_access_token: str = Field(min_length=1, description="Plaid API access token for this institution")
+    name: guru.Institution = Field(
+        min_length=1, description="Display name of the institution"
+    )
+    plaid_access_token: str = Field(
+        min_length=1, description="Plaid API access token for this institution"
+    )
     plaid_id: str = Field(min_length=1, description="Plaid institution ID")
     holder: str = Field(min_length=1, description="Name of the account holder")
+
 
 class Account(BaseSQLModel, table=True):
     """A financial account belonging to a linked institution."""
 
     name: str = Field(min_length=1, description="Account display name")
-    institution_id: uuid.UUID = Field(foreign_key="institution.id", description="Foreign key to the parent Institution")
+    institution_id: uuid.UUID = Field(
+        foreign_key="institution.id",
+        description="Foreign key to the parent Institution",
+    )
     plaid_id: str = Field(description="Plaid account ID")
     type: guru.AccountType = Field(description="Savings, Chequing, or Credit Card")
