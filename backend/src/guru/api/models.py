@@ -3,7 +3,7 @@ from enum import StrEnum
 
 class Institution(StrEnum):
     """Financial institution supported for linking accounts."""
-    WEALTHSIMPLE = "WealthSimple"
+    WEALTHSIMPLE = "Wealthsimple"
     TANGERINE = "Tangerine"
 
 class AccountType(StrEnum):

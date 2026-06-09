@@ -4,6 +4,7 @@ CREATE TABLE `institution` (
   `name` varchar NOT NULL,
   `plaid_access_token` varchar NOT NULL,
   `plaid_id` varchar NOT NULL,
+  `holder` varchar NOT NULL,
   PRIMARY KEY (`id`)
 );
 -- Create "account" table
@@ -13,7 +14,6 @@ CREATE TABLE `account` (
   `institution_id` char NOT NULL,
   `plaid_id` varchar NOT NULL,
   `type` varchar NOT NULL,
-  `holder` varchar NOT NULL,
   PRIMARY KEY (`id`),
   CONSTRAINT `0` FOREIGN KEY (`institution_id`) REFERENCES `institution` (`id`) ON UPDATE NO ACTION ON DELETE NO ACTION
 );

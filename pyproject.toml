@@ -22,7 +22,6 @@ dependencies = [
 [tool.uv.build-backend]
 module-root = "backend/src"
 module-name = "guru"
-namespace = true
 
 [dependency-groups]
 dev = [

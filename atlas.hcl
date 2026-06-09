@@ -1,8 +1,6 @@
 data "external_schema" "sqlalchemy" {
   program = [
-    "atlas-provider-sqlalchemy",
-    "--path", "./backend/src",
-    "--dialect", "sqlite"
+    "sh", "-c", "PYTHONPATH=./backend/src .venv/bin/atlas-provider-sqlalchemy --path ./backend/src --dialect sqlite --skip-errors"
   ]
 }
 
