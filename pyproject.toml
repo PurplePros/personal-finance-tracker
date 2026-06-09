@@ -36,6 +36,9 @@ target-version = "py314"
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
 
+[tool.ty.analysis]
+respect-type-ignore-comments = true
+
 [tool.ty.src]
 include = ["backend/src"]
 

@@ -17,8 +17,8 @@ class BaseSQLModel(SQLModel):
         description="Primary key, auto-generated UUIDv7",
     )
 
-    @declared_attr.directive
-    def __tablename__(self, cls) -> str:
+    @declared_attr  # type: ignore
+    def __tablename__(cls) -> str:  # noqa: N805
         return cls.__name__.lower()
 
 
