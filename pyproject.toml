@@ -10,15 +10,18 @@ readme = "README.md"
 requires-python = ">=3.14.5"
 dependencies = [
     "atlas-provider-sqlalchemy>=0.5.0",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
     "plaid-python>=39.2.0",
+    "pydantic-settings>=2.14.1",
     "sqlalchemy>=2.0",
     "sqlmodel>=0.0.38",
+    "uuid>=1.30",
 ]
 
 [tool.uv.build-backend]
-module-name = "guru"
 module-root = "backend/src"
-namespace = true
+module-name = "guru"
 
 [dependency-groups]
 dev = [
@@ -33,8 +36,11 @@ target-version = "py314"
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
 
+[tool.ty.analysis]
+respect-type-ignore-comments = true
+
 [tool.ty.src]
 include = ["backend/src"]
 
 [project.scripts]
-guru = "guru.api.main:main"
+guru = "guru.api.app:main"
