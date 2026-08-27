@@ -1,10 +1,6 @@
 @import 'tailwindcss';
 
-/*
- * Guru — base theme. The dashboard UI (PUR-8) builds on top of this.
- * Kept intentionally small here: PUR-7 only scaffolds the app and the
- * deriveDashboard module.
- */
+/* Guru — base theme. Intentionally minimal; the dashboard view builds on top. */
 :root {
   color-scheme: light dark;
 }

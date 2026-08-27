@@ -18,11 +18,8 @@ describe('deriveDashboard', () => {
     it('classifies each account by the sign of its balance, incl. edge cases', () => {
       const byId = new Map(allAccountsOf(model).map((a) => [a.id, a]))
 
-      // Overpaid credit card (positive) ⇒ asset.
       expect(byId.get('acc-cc')?.classification).toBe('asset')
-      // Overdrawn chequing (negative) ⇒ liability.
       expect(byId.get('acc-chq')?.classification).toBe('liability')
-      // Ordinary positive balances ⇒ assets.
       expect(byId.get('acc-sav')?.classification).toBe('asset')
       expect(byId.get('acc-rrsp')?.classification).toBe('asset')
     })
@@ -33,15 +30,13 @@ describe('deriveDashboard', () => {
     })
 
     it('computes total assets, total liabilities, and net worth', () => {
-      // Assets: 500000 + 200000 + 150000 + 25000 + 800000 (USD excluded).
       expect(model.totalAssets).toBe(1_675_000)
-      // Liabilities: |−12000| (overdrawn chequing).
       expect(model.totalLiabilities).toBe(12_000)
       expect(model.netWorth).toBe(1_663_000)
     })
 
     it('excludes non-CAD balances from the totals', () => {
-      // The USD account holds 1_000_000; if it leaked in, assets would jump.
+      // The excluded USD account holds 1_000_000; if it leaked in, this would be higher.
       expect(model.totalAssets).toBe(1_675_000)
     })
 
@@ -59,11 +54,8 @@ describe('deriveDashboard', () => {
     it('gives each institution a subtotal of its included signed balances', () => {
       const ws = model.institutions.find((i) => i.id === WEALTHSIMPLE.id)!
       const tg = model.institutions.find((i) => i.id === TANGERINE.id)!
-      // WS: RRSP + TFSA + TFSA + credit (USD excluded).
       expect(ws.subtotal).toBe(875_000)
-      // TG: −12000 + 800000.
       expect(tg.subtotal).toBe(788_000)
-      // Subtotals reconcile to net worth.
       expect(ws.subtotal + tg.subtotal).toBe(model.netWorth)
     })
 
@@ -84,7 +76,6 @@ describe('deriveDashboard', () => {
       expect(rrsp.subtotal).toBe(500_000)
 
       const tfsa = ws.investments.find((g) => g.productName === 'TFSA')!
-      // Two same-named TFSAs remain as two distinct accounts.
       expect(tfsa.accounts.map((a) => a.id)).toEqual(['acc-tfsa-1', 'acc-tfsa-2'])
       expect(tfsa.subtotal).toBe(350_000)
     })
@@ -140,7 +131,7 @@ describe('deriveDashboard', () => {
         institution_id: inst.id,
         plaid_id: 'pa',
         type: 'Savings',
-        balance: 100_000, // +$1,000.00
+        balance: 100_000,
         iso_currency_code: 'CAD',
       }
       const debt: Account = {
@@ -149,7 +140,7 @@ describe('deriveDashboard', () => {
         institution_id: inst.id,
         plaid_id: 'pb',
         type: 'Credit Card',
-        balance: -350_000, // -$3,500.00
+        balance: -350_000,
         iso_currency_code: 'CAD',
       }
       const model = deriveDashboard([inst], [asset, debt])
@@ -192,7 +183,6 @@ describe('deriveDashboard', () => {
         iso_currency_code: 'CAD',
       }
       const model = deriveDashboard(institutions, [...accounts, orphan])
-      // Net worth is unchanged: the orphan never enters any total.
       expect(model.netWorth).toBe(1_663_000)
     })
   })
