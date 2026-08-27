@@ -9,8 +9,13 @@ class Institution(StrEnum):
 
 
 class AccountType(StrEnum):
-    """Types of financial accounts tracked in the system."""
+    """Coarse classification of an Account.
+
+    Registered accounts (RRSP, TFSA) are ``Investment``; the specific product
+    name is carried by ``Account.name``, not by the type.
+    """
 
     SAVINGS = "Savings"
     CHEQUING = "Chequing"
     CREDIT = "Credit Card"
+    INVESTMENT = "Investment"

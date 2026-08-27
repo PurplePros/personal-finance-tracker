@@ -25,6 +25,8 @@ module-name = "guru"
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
     "ruff>=0.15.16",
     "ty>=0.0.44",
 ]
@@ -41,6 +43,9 @@ respect-type-ignore-comments = true
 
 [tool.ty.src]
 include = ["backend/src"]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
 
 [project.scripts]
 guru = "guru.api.app:main"
