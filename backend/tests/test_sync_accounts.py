@@ -133,6 +133,8 @@ def test_accounts_endpoint_exposes_dashboard_fields(
 
     account = client.get("/api/accounts").json()[0]
     assert set(account) >= {"balance", "iso_currency_code", "type"}
+    # balance is a JSON number, not a string.
+    assert isinstance(account["balance"], (int, float))
     assert Decimal(str(account["balance"])) == Decimal("-450.00")
     assert account["iso_currency_code"] == "CAD"
     assert account["type"] == "Credit Card"

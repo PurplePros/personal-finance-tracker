@@ -46,6 +46,7 @@ include = ["backend/src"]
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
+pythonpath = ["backend/src"]
 
 [project.scripts]
 guru = "guru.api.app:main"
