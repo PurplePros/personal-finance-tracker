@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from sqlmodel import Session, select
 
 from guru.api.models import AccountType
@@ -11,13 +13,25 @@ PLAID_TYPE_MAP: dict[tuple[str, str], AccountType] = {
     ("credit", "credit card"): AccountType.CREDIT,
 }
 
+# Plaid top-level `type`s that are investment/registered accounts (RRSP, TFSA,
+# brokerage, ...). These map to Investment regardless of subtype; the specific
+# registered product stays in Account.name.
+INVESTMENT_PLAID_TYPES: frozenset[str] = frozenset({"investment", "brokerage"})
+
 
 def _map_account_type(plaid_type: str, plaid_subtype: str) -> AccountType:
     """Map Plaid type/subtype to our AccountType enum; default to Chequing."""
+    if plaid_type in INVESTMENT_PLAID_TYPES:
+        return AccountType.INVESTMENT
     return PLAID_TYPE_MAP.get(
         (plaid_type, plaid_subtype),
         AccountType.CHEQUING,
     )
+
+
+def _read_balance(pa: dict) -> Decimal:
+    """Read the current balance as an exact Decimal, avoiding float drift."""
+    return Decimal(str(pa["balances"]["current"]))
 
 
 def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
@@ -42,6 +56,8 @@ def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
             account_type = _map_account_type(
                 str(pa["type"]), str(pa.get("subtype", ""))
             )
+            balance = _read_balance(pa)
+            iso_currency_code = str(pa["balances"]["iso_currency_code"])
             existing = session.exec(
                 select(Account).where(
                     Account.plaid_id == pa["account_id"],
@@ -52,6 +68,8 @@ def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
             if existing:
                 existing.name = pa["name"]
                 existing.type = account_type
+                existing.balance = balance
+                existing.iso_currency_code = iso_currency_code
                 synced.append(
                     {
                         "plaid_id": pa["account_id"],
@@ -65,6 +83,8 @@ def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
                         institution_id=institution.id,
                         plaid_id=pa["account_id"],
                         type=account_type,
+                        balance=balance,
+                        iso_currency_code=iso_currency_code,
                     )
                 )
                 synced.append(

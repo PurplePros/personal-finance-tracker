@@ -1,5 +1,7 @@
 import uuid
+from decimal import Decimal
 
+from pydantic import field_serializer
 from sqlalchemy.orm import declared_attr
 from sqlmodel import Field, SQLModel
 
@@ -44,4 +46,20 @@ class Account(BaseSQLModel, table=True):
         description="Foreign key to the parent Institution",
     )
     plaid_id: str = Field(description="Plaid account ID")
-    type: guru.AccountType = Field(description="Savings, Chequing, or Credit Card")
+    type: guru.AccountType = Field(
+        description="Coarse account type (see AccountType)"
+    )
+    balance: Decimal = Field(
+        max_digits=20,
+        decimal_places=2,
+        description="Current balance (Plaid balances.current) in account currency",
+    )
+    iso_currency_code: str = Field(
+        min_length=1,
+        description="ISO currency code of the account (Plaid iso_currency_code)",
+    )
+
+    @field_serializer("balance")
+    def _serialize_balance(self, value: Decimal) -> float:
+        """Emit balance as a JSON number. Storage stays exact Decimal."""
+        return float(value)
