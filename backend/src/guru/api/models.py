@@ -1,13 +1,6 @@
 from enum import StrEnum
 
 
-class Institution(StrEnum):
-    """Financial institution supported for linking accounts."""
-
-    WEALTHSIMPLE = "Wealthsimple"
-    TANGERINE = "Tangerine"
-
-
 class AccountType(StrEnum):
     """Coarse classification of an Account.
 

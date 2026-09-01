@@ -1,5 +1,7 @@
+import json
 from decimal import Decimal
 
+import plaid
 from sqlmodel import Session, select
 
 from guru.api.models import AccountType
@@ -34,6 +36,18 @@ def _read_balance(pa: dict) -> Decimal:
     return Decimal(str(pa["balances"]["current"]))
 
 
+def _extract_plaid_error_code(exc: Exception) -> str:
+    """Pull error_code out of a Plaid ApiException body, or return '' on failure."""
+    if not isinstance(exc, plaid.ApiException):
+        return ""
+    try:
+        body = exc.body
+        parsed = json.loads(body) if isinstance(body, str) else body
+        return str(parsed.get("error_code", ""))
+    except Exception:
+        return ""
+
+
 def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
     """Fetch accounts from Plaid for every institution and upsert them."""
     institutions = InstitutionRepository().list(session)
@@ -42,11 +56,14 @@ def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
         try:
             plaid_accounts = plaid_service.list_accounts(institution.plaid_access_token)
         except Exception as e:
+            error_code = _extract_plaid_error_code(e)
             results.append(
                 {
                     "institution": str(institution.name),
+                    "institution_id": str(institution.id),
                     "status": "error",
                     "error": str(e),
+                    "error_code": error_code,
                 }
             )
             continue

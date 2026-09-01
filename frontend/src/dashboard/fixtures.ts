@@ -5,6 +5,7 @@ export const WEALTHSIMPLE: Institution = {
   id: 'inst-ws',
   name: 'Wealthsimple',
   plaid_id: 'plaid-inst-ws',
+  plaid_item_id: null,
   holder: 'Catherine',
 }
 
@@ -12,6 +13,7 @@ export const TANGERINE: Institution = {
   id: 'inst-tg',
   name: 'Tangerine',
   plaid_id: 'plaid-inst-tg',
+  plaid_item_id: null,
   holder: 'Catherine',
 }
 

@@ -1,4 +1,4 @@
-import type { Account, Institution } from './types'
+import type { Account, Institution, SyncResult } from './types'
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init)
@@ -19,6 +19,31 @@ export async function fetchDashboardData(): Promise<{
   return { accounts, institutions }
 }
 
-export async function syncAccounts(): Promise<void> {
-  await requestJson('/api/sync', { method: 'POST' })
+export async function syncAccounts(): Promise<SyncResult[]> {
+  return requestJson<SyncResult[]>('/api/sync', { method: 'POST' })
+}
+
+export async function createLinkToken(itemId?: string): Promise<string> {
+  const body = itemId ? { item_id: itemId } : {}
+  const result = await requestJson<{ link_token: string }>('/api/plaid/link-token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return result.link_token
+}
+
+export async function exchangeToken(
+  publicToken: string,
+  institutionName: string,
+): Promise<string> {
+  const result = await requestJson<{ institution_id: string }>(
+    '/api/plaid/exchange-token',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ public_token: publicToken, institution_name: institutionName }),
+    },
+  )
+  return result.institution_id
 }

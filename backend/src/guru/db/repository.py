@@ -50,3 +50,8 @@ class InstitutionRepository(Repository[Institution]):
     def get(self, session: Session, id: uuid.UUID) -> Institution | None:
         """Return the institution with the given id, or None."""
         return session.get(Institution, id)
+
+    def get_by_item_id(self, session: Session, item_id: str) -> Institution | None:
+        """Return the institution whose Plaid item_id matches, or None."""
+        stmt = select(Institution).where(Institution.plaid_item_id == item_id)
+        return session.exec(stmt).first()

@@ -5,7 +5,7 @@ from pydantic import field_serializer
 from sqlalchemy.orm import declared_attr
 from sqlmodel import Field, SQLModel
 
-import guru.api.models as guru
+from guru.api.models import AccountType
 
 
 class BaseSQLModel(SQLModel):
@@ -27,14 +27,17 @@ class BaseSQLModel(SQLModel):
 class Institution(BaseSQLModel, table=True):
     """A linked financial institution storing its Plaid credentials."""
 
-    name: guru.Institution = Field(
-        min_length=1, description="Display name of the institution"
-    )
+    name: str = Field(min_length=1, description="Display name of the institution")
     plaid_access_token: str = Field(
         min_length=1, description="Plaid API access token for this institution"
     )
     plaid_id: str = Field(min_length=1, description="Plaid institution ID")
-    holder: str = Field(min_length=1, description="Name of the account holder")
+    # item_id returned by Plaid on token exchange; used to re-authenticate
+    # (update mode) when a token breaks.
+    plaid_item_id: str | None = Field(
+        default=None, description="Plaid item ID for this connection"
+    )
+    holder: str = Field(default="", description="Name of the account holder")
 
 
 class Account(BaseSQLModel, table=True):
@@ -46,7 +49,7 @@ class Account(BaseSQLModel, table=True):
         description="Foreign key to the parent Institution",
     )
     plaid_id: str = Field(description="Plaid account ID")
-    type: guru.AccountType = Field(
+    type: AccountType = Field(
         description="Coarse account type (see AccountType)"
     )
     balance: Decimal = Field(

@@ -16,4 +16,6 @@ def get_session(request: Request) -> Generator[Session, None, None]:
 def get_plaid_service() -> PlaidService:
     """Provide a PlaidService configured from app settings."""
     settings = Settings()
-    return PlaidService.default(settings.plaid_client_id, settings.plaid_secret)
+    return PlaidService.default(
+        settings.plaid_client_id, settings.plaid_secret, settings.plaid_env
+    )
