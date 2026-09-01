@@ -22,13 +22,15 @@ interface PlaidMetadata {
 }
 
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000
-const currency = new Intl.NumberFormat('en-CA', {
-  style: 'currency',
-  currency: 'CAD',
-})
+const currency = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' })
+const timeFormat = new Intl.DateTimeFormat('en-CA', { timeStyle: 'short' })
 
 function formatBalance(balance: number) {
   return currency.format(balance / 100)
+}
+
+function nowFormatted() {
+  return `Updated ${timeFormat.format(new Date())}`
 }
 
 function Balance({
@@ -113,7 +115,11 @@ function loadPlaidScript(): Promise<void> {
   })
 }
 
-function openPlaidLink(token: string, onSuccess: (publicToken: string, metadata: PlaidMetadata) => void): void {
+function openPlaidLink(
+  token: string,
+  onSuccess: (publicToken: string, metadata: PlaidMetadata) => void,
+  onExit: () => void,
+): void {
   if (!window.Plaid) throw new Error('Plaid SDK not loaded')
   const handler = window.Plaid.create({
     token,
@@ -121,9 +127,18 @@ function openPlaidLink(token: string, onSuccess: (publicToken: string, metadata:
       handler.destroy()
       onSuccess(publicToken, metadata)
     },
-    onExit: () => handler.destroy(),
+    onExit: () => {
+      handler.destroy()
+      onExit()
+    },
   })
   handler.open()
+}
+
+type SyncOutcome = {
+  dashboard: DashboardViewModel
+  institutions: Institution[]
+  results: SyncResult[]
 }
 
 export default function App() {
@@ -134,17 +149,17 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isAddingAccount, setIsAddingAccount] = useState(false)
   const [reconnectErrors, setReconnectErrors] = useState<SyncResult[]>([])
-  const syncInFlight = useRef<Promise<{ dashboard: DashboardViewModel; results: SyncResult[] }> | null>(null)
+  const syncInFlight = useRef<Promise<SyncOutcome> | null>(null)
 
   const synchronize = useCallback(() => {
     if (syncInFlight.current) return syncInFlight.current
 
-    const request = (async () => {
+    const request = (async (): Promise<SyncOutcome> => {
       const results = await syncAccounts()
       const data = await fetchDashboardData()
-      setInstitutions(data.institutions)
       return {
         dashboard: deriveDashboard(data.institutions, data.accounts),
+        institutions: data.institutions,
         results,
       }
     })()
@@ -161,10 +176,11 @@ export default function App() {
     setError(null)
     setMessage('Syncing accounts…')
     try {
-      const { dashboard: newDashboard, results } = await synchronize()
+      const { dashboard: newDashboard, institutions: newInstitutions, results } = await synchronize()
       setDashboard(newDashboard)
+      setInstitutions(newInstitutions)
       setReconnectErrors(results.filter((r) => r.error_code === 'ITEM_LOGIN_REQUIRED'))
-      setMessage(`Updated ${new Intl.DateTimeFormat('en-CA', { timeStyle: 'short' }).format(new Date())}`)
+      setMessage(nowFormatted())
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to refresh accounts.')
     } finally {
@@ -182,14 +198,15 @@ export default function App() {
         setInstitutions(data.institutions)
         if (data.accounts.length === 0) {
           setMessage('Finding your accounts…')
-          const { dashboard: newDashboard, results } = await synchronize()
+          const { dashboard: newDashboard, institutions: newInstitutions, results } = await synchronize()
           if (!isCurrent) return
           setDashboard(newDashboard)
+          setInstitutions(newInstitutions)
           setReconnectErrors(results.filter((r) => r.error_code === 'ITEM_LOGIN_REQUIRED'))
         } else {
           setDashboard(deriveDashboard(data.institutions, data.accounts))
         }
-        if (isCurrent) setMessage(`Updated ${new Intl.DateTimeFormat('en-CA', { timeStyle: 'short' }).format(new Date())}`)
+        if (isCurrent) setMessage(nowFormatted())
       } catch (cause) {
         if (isCurrent) setError(cause instanceof Error ? cause.message : 'Unable to load accounts.')
       }
@@ -210,16 +227,20 @@ export default function App() {
       await loadPlaidScript()
       const linkToken = await createLinkToken()
       await new Promise<void>((resolve, reject) => {
-        openPlaidLink(linkToken, async (publicToken, metadata) => {
-          try {
-            const institutionName = metadata.institution?.name ?? 'Unknown Institution'
-            await exchangeToken(publicToken, institutionName)
-            await refresh()
-            resolve()
-          } catch (cause) {
-            reject(cause instanceof Error ? cause : new Error('Failed to connect account'))
-          }
-        })
+        openPlaidLink(
+          linkToken,
+          async (publicToken, metadata) => {
+            try {
+              const institutionName = metadata.institution?.name ?? 'Unknown Institution'
+              await exchangeToken(publicToken, institutionName)
+              await refresh()
+              resolve()
+            } catch (cause) {
+              reject(cause instanceof Error ? cause : new Error('Failed to connect account'))
+            }
+          },
+          resolve, // user cancelled: resolve without error so no error banner appears
+        )
       })
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Failed to add account.')
@@ -234,14 +255,18 @@ export default function App() {
       await loadPlaidScript()
       const linkToken = await createLinkToken(itemId)
       await new Promise<void>((resolve, reject) => {
-        openPlaidLink(linkToken, async () => {
-          try {
-            await refresh()
-            resolve()
-          } catch (cause) {
-            reject(cause instanceof Error ? cause : new Error('Failed to reconnect'))
-          }
-        })
+        openPlaidLink(
+          linkToken,
+          async () => {
+            try {
+              await refresh()
+              resolve()
+            } catch (cause) {
+              reject(cause instanceof Error ? cause : new Error('Failed to reconnect'))
+            }
+          },
+          resolve, // user cancelled: resolve silently
+        )
       })
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Failed to reconnect account.')
@@ -290,7 +315,7 @@ export default function App() {
             const institution = institutions.find((i) => i.id === r.institution_id)
             const itemId = institution?.plaid_item_id ?? null
             return (
-              <div className="reconnect-prompt" key={r.institution_id}>
+              <div className="reconnect-prompt" key={r.institution_id ?? r.institution}>
                 <span>{r.institution} needs to be reconnected.</span>
                 {itemId && (
                   <button
