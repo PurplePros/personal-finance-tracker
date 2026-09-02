@@ -37,7 +37,7 @@ class PlaidService:
         cls, client_id: str, client_secret: str, plaid_env: str = "development"
     ) -> "PlaidService":
         """Create a PlaidService using credentials and the given environment."""
-        host = _ENV_MAP.get(plaid_env, plaid.Environment.Development)
+        host = _ENV_MAP.get(plaid_env, plaid.Environment.Production)
         configuration = plaid.Configuration(
             host=host,
             api_key={
