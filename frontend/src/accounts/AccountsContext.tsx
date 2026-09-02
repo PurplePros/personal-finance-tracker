@@ -22,7 +22,7 @@ interface PlaidMetadata {
   institution?: { name: string }
 }
 
-const timeFormat = new Intl.DateTimeFormat('en-CA', { timeStyle: 'short' })
+const timeFormat = new Intl.DateTimeFormat('en-CA', { dateStyle: 'medium', timeStyle: 'short' })
 
 function nowFormatted() {
   return `Updated ${timeFormat.format(new Date())}`
