@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "read -r line; f=$(echo \"$line\" | jq -r '.tool_input.file_path // \"\"'); [[ \"$f\" == *.py ]] || exit 0; ret=0; uv run ruff check \"$f\" || ret=1; uv run ty check \"$f\" || ret=1; exit $ret",
+            "statusMessage": "ruff + ty"
+          }
+        ]
+      }
+    ]
+  }
+}
