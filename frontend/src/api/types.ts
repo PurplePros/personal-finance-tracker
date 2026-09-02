@@ -5,13 +5,20 @@ export type CurrencyCode = string
 /** Registered products (RRSP, TFSA) are all `Investment`; the product name lives in `Account.name`. */
 export type AccountType = 'Chequing' | 'Savings' | 'Credit Card' | 'Investment'
 
-export type InstitutionName = 'Wealthsimple' | 'Tangerine'
-
 export interface Institution {
   id: string
-  name: InstitutionName
+  name: string
   plaid_id: string
+  plaid_item_id: string | null
   holder: string
+}
+
+export interface SyncResult {
+  institution: string
+  institution_id?: string
+  status: 'ok' | 'error'
+  error?: string
+  error_code?: string
 }
 
 export interface Account {

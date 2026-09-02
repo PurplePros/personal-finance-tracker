@@ -35,5 +35,8 @@ ENV/
 env.bak/
 venv.bak/
 
+# --- macOS ---
+.DS_Store
+
 # --- DB ---
 *.db

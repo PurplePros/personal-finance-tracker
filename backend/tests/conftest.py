@@ -20,20 +20,45 @@ from guru.db.models import Institution
 class FakePlaidService:
     """In-memory stand-in for `PlaidService`, keyed by access token.
 
-    Register the accounts a token should return via `set_accounts`; `sync_all`
-    then reads them exactly as it would read a real `accounts_get` response.
+    Register accounts via `set_accounts`; errors via `set_error`.
+    Link token and exchange token behaviour is configurable for Ticket B routes.
     """
 
     def __init__(self) -> None:
         self._accounts_by_token: dict[str, list[dict]] = {}
+        self._errors_by_token: dict[str, Exception] = {}
+        self._link_token: str = "link-token-sandbox"
+        self._exchange_result: tuple[str, str] = ("access-token-new", "item-id-new")
 
     def set_accounts(self, access_token: str, accounts: list[dict]) -> None:
         """Set the accounts that `list_accounts` returns for a token."""
         self._accounts_by_token[access_token] = accounts
 
+    def set_error(self, access_token: str, exc: Exception) -> None:
+        """Make `list_accounts` raise exc for the given access token."""
+        self._errors_by_token[access_token] = exc
+
+    def set_link_token(self, link_token: str) -> None:
+        """Set the link_token that `create_link_token` returns."""
+        self._link_token = link_token
+
+    def set_exchange_result(self, access_token: str, item_id: str) -> None:
+        """Set the (access_token, item_id) that `exchange_public_token` returns."""
+        self._exchange_result = (access_token, item_id)
+
     def list_accounts(self, access_token: str) -> list[dict]:
         """Return the faked accounts registered for the given access token."""
+        if access_token in self._errors_by_token:
+            raise self._errors_by_token[access_token]
         return self._accounts_by_token.get(access_token, [])
+
+    def create_link_token(self, access_token: str | None = None) -> str:
+        """Return the configured link token."""
+        return self._link_token
+
+    def exchange_public_token(self, public_token: str) -> tuple[str, str]:
+        """Return the configured (access_token, item_id)."""
+        return self._exchange_result
 
 
 @pytest.fixture
@@ -66,11 +91,13 @@ def seed_institution(app: FastAPI):
     def _seed(
         name: str = "Wealthsimple",
         access_token: str = "access-token-1",
+        plaid_item_id: str | None = None,
     ) -> Institution:
         institution = Institution(
             name=name,
             plaid_access_token=access_token,
             plaid_id=f"ins_{uuid.uuid4().hex[:8]}",
+            plaid_item_id=plaid_item_id,
             holder="Alice",
         )
         with Session(app.state.engine) as session:

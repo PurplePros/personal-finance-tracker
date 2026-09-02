@@ -55,3 +55,6 @@ h1 { margin: 0.15rem 0 0; font-size: clamp(1.7rem, 5vw, 2.4rem); letter-spacing:
 .hero .asset { color: #d7edaa; }
 .hero .liability { color: #ffb3a2; }
 .empty-state { padding: 2rem; text-align: center; color: #5a6a61; }
+.reconnect-prompts { display: grid; gap: 0.5rem; margin-bottom: 1rem; }
+.reconnect-prompt { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.85rem 1rem; border-radius: 0.75rem; background: #fdf2ee; border: 1px solid #e8a090; font-size: 0.9rem; color: #7a2e1e; }
+.reconnect-prompt button { background: #b84631; color: white; flex-shrink: 0; }

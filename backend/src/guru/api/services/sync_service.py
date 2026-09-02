@@ -1,5 +1,7 @@
+import json
 from decimal import Decimal
 
+import plaid
 from sqlmodel import Session, select
 
 from guru.api.models import AccountType
@@ -29,9 +31,30 @@ def _map_account_type(plaid_type: str, plaid_subtype: str) -> AccountType:
     )
 
 
-def _read_balance(pa: dict) -> Decimal:
-    """Read the current balance as an exact Decimal, avoiding float drift."""
-    return Decimal(str(pa["balances"]["current"]))
+def _read_balance(pa: dict, account_type: AccountType) -> Decimal:
+    """Read the current balance as an exact Decimal, avoiding float drift.
+
+    Plaid reports credit card balances as positive when money is owed, which
+    is the opposite of our sign convention (negative = liability). Negate them.
+    """
+    balance = Decimal(str(pa["balances"]["current"]))
+    if account_type == AccountType.CREDIT:
+        return -balance
+    return balance
+
+
+def _extract_plaid_error_code(exc: Exception) -> str:
+    """Pull error_code out of a Plaid ApiException body, or return '' on failure."""
+    if not isinstance(exc, plaid.ApiException):
+        return ""
+    try:
+        body = exc.body
+        parsed = json.loads(body) if isinstance(body, str) else body
+        if not isinstance(parsed, dict):
+            return ""
+        return str(parsed.get("error_code", ""))
+    except Exception:
+        return ""
 
 
 def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
@@ -42,11 +65,14 @@ def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
         try:
             plaid_accounts = plaid_service.list_accounts(institution.plaid_access_token)
         except Exception as e:
+            error_code = _extract_plaid_error_code(e)
             results.append(
                 {
                     "institution": str(institution.name),
+                    "institution_id": str(institution.id),
                     "status": "error",
                     "error": str(e),
+                    "error_code": error_code,
                 }
             )
             continue
@@ -56,7 +82,7 @@ def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
             account_type = _map_account_type(
                 str(pa["type"]), str(pa.get("subtype", ""))
             )
-            balance = _read_balance(pa)
+            balance = _read_balance(pa, account_type)
             iso_currency_code = str(pa["balances"]["iso_currency_code"])
             existing = session.exec(
                 select(Account).where(

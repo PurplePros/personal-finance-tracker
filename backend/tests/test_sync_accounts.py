@@ -4,8 +4,6 @@ Each test syncs against a faked Plaid, then reads the accounts back through
 `GET /api/accounts` — verifiable through the API alone.
 """
 
-from decimal import Decimal
-
 from helpers import plaid_account
 
 
@@ -32,7 +30,7 @@ def test_sync_persists_balance_and_currency(client, fake_plaid, seed_institution
     assert len(accounts) == 1
     account = accounts[0]
     assert account["institution_id"] == str(institution.id)
-    assert Decimal(str(account["balance"])) == Decimal("1234.56")
+    assert account["balance"] == 123456  # $1,234.56 → 123456 cents
     assert account["iso_currency_code"] == "CAD"
     assert account["type"] == "Savings"
 
@@ -88,7 +86,7 @@ def test_sync_is_idempotent_create_then_update(client, fake_plaid, seed_institut
     first = client.get("/api/accounts").json()
     assert len(first) == 1
     original_id = first[0]["id"]
-    assert Decimal(str(first[0]["balance"])) == Decimal("100.00")
+    assert first[0]["balance"] == 10000  # $100.00 → 10000 cents
 
     # Same Plaid account id, new name and balance -> update in place.
     fake_plaid.set_accounts(
@@ -109,7 +107,7 @@ def test_sync_is_idempotent_create_then_update(client, fake_plaid, seed_institut
     assert len(second) == 1
     assert second[0]["id"] == original_id
     assert second[0]["name"] == "Everyday Chequing"
-    assert Decimal(str(second[0]["balance"])) == Decimal("250.75")
+    assert second[0]["balance"] == 25075  # $250.75 → 25075 cents
 
 
 def test_accounts_endpoint_exposes_dashboard_fields(
@@ -125,7 +123,7 @@ def test_accounts_endpoint_exposes_dashboard_fields(
                 name="Visa",
                 plaid_type="credit",
                 subtype="credit card",
-                current=-450.00,
+                current=450.00,  # Plaid sends positive for money owed
             )
         ],
     )
@@ -133,8 +131,9 @@ def test_accounts_endpoint_exposes_dashboard_fields(
 
     account = client.get("/api/accounts").json()[0]
     assert set(account) >= {"balance", "iso_currency_code", "type"}
-    # balance is a JSON number, not a string.
-    assert isinstance(account["balance"], (int, float))
-    assert Decimal(str(account["balance"])) == Decimal("-450.00")
+    # balance is a JSON integer (cents), not a float.
+    assert isinstance(account["balance"], int)
+    # Plaid reports credit balances as positive; we negate to make debt negative.
+    assert account["balance"] == -45000  # $450.00 owed → -45000 cents
     assert account["iso_currency_code"] == "CAD"
     assert account["type"] == "Credit Card"

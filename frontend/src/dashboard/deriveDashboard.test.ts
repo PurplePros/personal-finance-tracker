@@ -102,6 +102,7 @@ describe('deriveDashboard', () => {
         id: 'inst-usd-only',
         name: 'Wealthsimple',
         plaid_id: 'p',
+        plaid_item_id: null,
         holder: 'Catherine',
       }
       const usdAccount: Account = {
@@ -123,6 +124,7 @@ describe('deriveDashboard', () => {
         id: 'inst-debt',
         name: 'Tangerine',
         plaid_id: 'p',
+        plaid_item_id: null,
         holder: 'Catherine',
       }
       const asset: Account = {
@@ -154,6 +156,7 @@ describe('deriveDashboard', () => {
         id: 'inst-zero',
         name: 'Tangerine',
         plaid_id: 'p',
+        plaid_item_id: null,
         holder: 'Catherine',
       }
       const zeroAccount: Account = {
