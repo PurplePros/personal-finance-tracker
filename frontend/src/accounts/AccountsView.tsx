@@ -70,7 +70,7 @@ function InstitutionList({ institutions }: { institutions: InstitutionGroup[] })
 }
 
 export default function AccountsView() {
-  const { dashboard, institutions, reconnectPrompts, status, error, refresh, reconnect } = useAccounts()
+  const { dashboard, institutions, reconnectPrompts, status, error, isReconnecting, refresh, reconnect } = useAccounts()
 
   return (
     <div className="accounts-view">
@@ -105,8 +105,8 @@ export default function AccountsView() {
               <div className="reconnect-prompt" key={r.institution_id ?? r.institution}>
                 <span>{r.institution} needs to be reconnected.</span>
                 {reconnectOpts && (
-                  <button onClick={() => void reconnect(reconnectOpts)} type="button">
-                    Reconnect {r.institution}
+                  <button disabled={isReconnecting} onClick={() => void reconnect(reconnectOpts)} type="button">
+                    {isReconnecting ? 'Reconnecting…' : `Reconnect ${r.institution}`}
                   </button>
                 )}
               </div>

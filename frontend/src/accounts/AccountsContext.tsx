@@ -22,6 +22,12 @@ interface PlaidMetadata {
   institution?: { name: string }
 }
 
+const timeFormat = new Intl.DateTimeFormat('en-CA', { timeStyle: 'short' })
+
+function nowFormatted() {
+  return `Updated ${timeFormat.format(new Date())}`
+}
+
 function loadPlaidScript(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (window.Plaid) {
@@ -66,6 +72,7 @@ export interface AccountsContextValue {
   error: string | null
   isRefreshing: boolean
   isAddingAccount: boolean
+  isReconnecting: boolean
   refresh: () => Promise<void>
   addAccount: () => Promise<void>
   reconnect: (opts: { itemId?: string; institutionId?: string }) => Promise<void>
@@ -86,16 +93,12 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isAddingAccount, setIsAddingAccount] = useState(false)
+  const [isReconnecting, setIsReconnecting] = useState(false)
   const [reconnectPrompts, setReconnectPrompts] = useState<SyncResult[]>([])
 
   const orchestratorRef = useRef(
     createOrchestrator(syncAccounts, fetchDashboardData, deriveDashboard),
   )
-
-  const nowFormatted = () => {
-    const fmt = new Intl.DateTimeFormat('en-CA', { timeStyle: 'short' })
-    return `Updated ${fmt.format(new Date())}`
-  }
 
   const applyOutcome = useCallback(
     (outcome: { dashboard: DashboardViewModel; institutions: Institution[]; results: SyncResult[] }) => {
@@ -135,7 +138,7 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
           applyOutcome(outcome)
         } else {
           setDashboard(deriveDashboard(data.institutions, data.accounts))
-          if (isCurrent) setStatus(nowFormatted())
+          setStatus(nowFormatted())
         }
       } catch (cause) {
         if (isCurrent) setError(cause instanceof Error ? cause.message : 'Unable to load accounts.')
@@ -181,6 +184,7 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
 
   const reconnect = useCallback(
     async (opts: { itemId?: string; institutionId?: string }) => {
+      setIsReconnecting(true)
       setError(null)
       try {
         await loadPlaidScript()
@@ -201,6 +205,8 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
         })
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : 'Failed to reconnect account.')
+      } finally {
+        setIsReconnecting(false)
       }
     },
     [refresh],
@@ -215,6 +221,7 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
       error,
       isRefreshing,
       isAddingAccount,
+      isReconnecting,
       refresh,
       addAccount,
       reconnect,
