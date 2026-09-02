@@ -80,27 +80,13 @@ function Dashboard({ model }: { model: DashboardViewModel }) {
           {institution.investments.length > 0 && (
             <section className="investments" aria-label={`${institution.name} investments`}>
               <p>Investments</p>
-              {institution.investments.map((product) =>
-                product.accounts.length === 1 ? (
-                  // Single account in group: skip the wrapper to avoid
-                  // showing the product name twice (header + row).
-                  <ul className="account-list" key={product.productName}>
-                    <AccountRow account={product.accounts[0]} />
-                  </ul>
-                ) : (
-                  <div className="investment-product" key={product.productName}>
-                    <div className="product-header">
-                      <h3>{product.productName}</h3>
-                      <Balance balance={product.subtotal} />
-                    </div>
-                    <ul className="account-list">
-                      {product.accounts.map((account) => (
-                        <AccountRow account={account} key={account.id} />
-                      ))}
-                    </ul>
-                  </div>
-                ),
-              )}
+              <ul className="account-list">
+                {institution.investments.flatMap((product) =>
+                  product.accounts.map((account) => (
+                    <AccountRow account={account} key={account.id} />
+                  )),
+                )}
+              </ul>
             </section>
           )}
         </article>
