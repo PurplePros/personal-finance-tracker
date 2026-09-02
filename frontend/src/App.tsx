@@ -249,11 +249,11 @@ export default function App() {
     }
   }, [refresh])
 
-  const handleReconnect = useCallback(async (itemId: string) => {
+  const handleReconnect = useCallback(async (opts: { itemId?: string; institutionId?: string }) => {
     setError(null)
     try {
       await loadPlaidScript()
-      const linkToken = await createLinkToken(itemId)
+      const linkToken = await createLinkToken(opts)
       await new Promise<void>((resolve, reject) => {
         openPlaidLink(
           linkToken,
@@ -313,13 +313,17 @@ export default function App() {
         <div className="reconnect-prompts">
           {reconnectErrors.map((r) => {
             const institution = institutions.find((i) => i.id === r.institution_id)
-            const itemId = institution?.plaid_item_id ?? null
+            const reconnectOpts = institution
+              ? institution.plaid_item_id
+                ? { itemId: institution.plaid_item_id }
+                : { institutionId: institution.id }
+              : null
             return (
               <div className="reconnect-prompt" key={r.institution_id ?? r.institution}>
                 <span>{r.institution} needs to be reconnected.</span>
-                {itemId && (
+                {reconnectOpts && (
                   <button
-                    onClick={() => void handleReconnect(itemId)}
+                    onClick={() => void handleReconnect(reconnectOpts)}
                     type="button"
                   >
                     Reconnect {r.institution}

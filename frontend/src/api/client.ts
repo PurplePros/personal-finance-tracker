@@ -23,8 +23,15 @@ export async function syncAccounts(): Promise<SyncResult[]> {
   return requestJson<SyncResult[]>('/api/sync', { method: 'POST' })
 }
 
-export async function createLinkToken(itemId?: string): Promise<string> {
-  const body = itemId ? { item_id: itemId } : {}
+export async function createLinkToken(opts?: {
+  itemId?: string
+  institutionId?: string
+}): Promise<string> {
+  const body = opts?.itemId
+    ? { item_id: opts.itemId }
+    : opts?.institutionId
+      ? { institution_id: opts.institutionId }
+      : {}
   const result = await requestJson<{ link_token: string }>('/api/plaid/link-token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

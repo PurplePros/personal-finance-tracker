@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session
@@ -12,6 +14,7 @@ router = APIRouter(prefix="/api/plaid")
 
 class LinkTokenRequest(BaseModel):
     item_id: str | None = None
+    institution_id: str | None = None
 
 
 class LinkTokenResponse(BaseModel):
@@ -41,6 +44,15 @@ def create_link_token(
     access_token: str | None = None
     if body.item_id is not None:
         institution = InstitutionRepository().get_by_item_id(session, body.item_id)
+        if institution is None:
+            raise HTTPException(status_code=404, detail="Institution not found")
+        access_token = institution.plaid_access_token
+    elif body.institution_id is not None:
+        try:
+            institution_uuid = uuid.UUID(body.institution_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid institution_id")
+        institution = InstitutionRepository().get(session, institution_uuid)
         if institution is None:
             raise HTTPException(status_code=404, detail="Institution not found")
         access_token = institution.plaid_access_token
