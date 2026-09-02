@@ -42,8 +42,9 @@ button:disabled { opacity: 0.65; cursor: wait; }
 .totals div { display: grid; gap: 0.2rem; }
 .totals dt { color: #d5dfc6; font-size: 0.8rem; }
 .totals dd { margin: 0; font-weight: 700; }
-.status { min-height: 1.5rem; margin: 1.2rem 0.3rem 0.8rem; color: #5a6a61; font-size: 0.9rem; }
-.try-again { margin-left: 0.3rem; background: #c85b3c; color: white; }
+.app-footer { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem; border-top: 1px solid #d7d9cc; background: #f5f3ed; }
+.status { margin: 0; color: #5a6a61; font-size: 0.85rem; }
+.try-again { background: #c85b3c; color: white; padding: 0.4rem 0.8rem; font-size: 0.85rem; }
 .institutions { display: grid; gap: 1rem; }
 .institution { border: 1px solid #d7d9cc; border-radius: 1rem; background: #fffefa; overflow: hidden; }
 .institution-header { padding: 1.15rem 1.2rem; background: #edf1df; }

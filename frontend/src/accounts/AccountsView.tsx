@@ -70,7 +70,7 @@ function InstitutionList({ institutions }: { institutions: InstitutionGroup[] })
 }
 
 export default function AccountsView() {
-  const { dashboard, institutions, reconnectPrompts, status, error, isReconnecting, refresh, reconnect } = useAccounts()
+  const { dashboard, institutions, reconnectPrompts, isReconnecting, reconnect } = useAccounts()
 
   return (
     <div className="accounts-view">
@@ -83,13 +83,6 @@ export default function AccountsView() {
             <div><dt>Liabilities</dt><dd>{formatBalance(dashboard.totalLiabilities)}</dd></div>
           </dl>
         </section>
-      )}
-
-      <p className="status" role="status">{error ?? status}</p>
-      {error && (
-        <button className="try-again" onClick={() => void refresh()} type="button">
-          Try again
-        </button>
       )}
 
       {reconnectPrompts.length > 0 && (

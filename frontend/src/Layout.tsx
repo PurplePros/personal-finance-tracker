@@ -2,7 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useAccounts } from './accounts/AccountsContext'
 
 export default function Layout() {
-  const { isRefreshing, isAddingAccount, refresh, addAccount } = useAccounts()
+  const { isRefreshing, isAddingAccount, status, error, refresh, addAccount } = useAccounts()
 
   return (
     <>
@@ -29,6 +29,15 @@ export default function Layout() {
       <main className="app-shell">
         <Outlet />
       </main>
+
+      <footer className="app-footer">
+        <p className="status" role="status">{error ?? status}</p>
+        {error && (
+          <button className="try-again" onClick={() => void refresh()} type="button">
+            Try again
+          </button>
+        )}
+      </footer>
     </>
   )
 }
