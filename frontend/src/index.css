@@ -25,18 +25,28 @@ button {
 }
 
 button:disabled { opacity: 0.65; cursor: wait; }
-.app-shell { max-width: 46rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
-.hero { background: #17372c; color: #f9f8f1; border-radius: 1.5rem; padding: 1.75rem; box-shadow: 0 1.5rem 3rem #17372c26; }
-.brand-row, .institution-header, .account-row, .product-header, .totals { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
-.eyebrow, .net-worth-label, .investments > p { margin: 0; color: #b6d28b; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
-h1 { margin: 0.15rem 0 0; font-size: clamp(1.7rem, 5vw, 2.4rem); letter-spacing: -0.04em; }
+.app-layout { display: flex; flex-direction: column; min-height: 100svh; }
+.app-layout .app-shell { flex: 1; }
+.app-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.75rem 1.25rem; background: #17372c; color: #f9f8f1; }
+.app-brand { font-size: 1.05rem; font-weight: 750; letter-spacing: -0.02em; }
+.header-actions { display: flex; gap: 0.5rem; }
+.header-actions button { background: #2e5c41; color: #f9f8f1; padding: 0.5rem 0.9rem; font-size: 0.875rem; }
+.header-actions button:disabled { opacity: 0.65; }
+.app-nav { display: flex; gap: 0; border-bottom: 1px solid #d7d9cc; background: #fff; padding: 0 1.25rem; }
+.nav-tab { display: inline-block; padding: 0.65rem 1rem; font-size: 0.9rem; font-weight: 600; color: #5a6a61; text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.nav-tab.active { color: #17372c; border-bottom-color: #17372c; }
+.app-shell { max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 2rem; width: 100%; box-sizing: border-box; }
+.net-worth-card { background: #17372c; color: #f9f8f1; border-radius: 1.5rem; padding: 1.75rem; box-shadow: 0 1.5rem 3rem #17372c26; margin-bottom: 1.5rem; }
+.institution-header, .account-row, .product-header, .totals { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.net-worth-label, .investments > p { margin: 0; color: #b6d28b; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
 .net-worth { margin: 0.35rem 0 1rem; font-size: clamp(2.5rem, 10vw, 4rem); font-weight: 750; letter-spacing: -0.065em; }
 .totals { margin: 0; border-top: 1px solid #ffffff2c; padding-top: 1rem; }
 .totals div { display: grid; gap: 0.2rem; }
 .totals dt { color: #d5dfc6; font-size: 0.8rem; }
 .totals dd { margin: 0; font-weight: 700; }
-.status { min-height: 1.5rem; margin: 1.2rem 0.3rem 0.8rem; color: #5a6a61; font-size: 0.9rem; }
-.try-again { margin-left: 0.3rem; background: #c85b3c; color: white; }
+.app-footer { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; padding: 0.6rem 1.25rem; border-top: 1px solid #d7d9cc; background: #f5f3ed; }
+.status { margin: 0; color: #5a6a61; font-size: 0.85rem; }
+.try-again { background: #c85b3c; color: white; padding: 0.4rem 0.8rem; font-size: 0.85rem; }
 .institutions { display: grid; gap: 1rem; }
 .institution { border: 1px solid #d7d9cc; border-radius: 1rem; background: #fffefa; overflow: hidden; }
 .institution-header { padding: 1.15rem 1.2rem; background: #edf1df; }
@@ -52,8 +62,8 @@ h1 { margin: 0.15rem 0 0; font-size: clamp(1.7rem, 5vw, 2.4rem); letter-spacing:
 .product-header { padding: 0.65rem 1.2rem; }
 .asset { color: #216547; }
 .liability { color: #b84631; }
-.hero .asset { color: #d7edaa; }
-.hero .liability { color: #ffb3a2; }
+.net-worth-card .asset { color: #d7edaa; }
+.net-worth-card .liability { color: #ffb3a2; }
 .empty-state { padding: 2rem; text-align: center; color: #5a6a61; }
 .reconnect-prompts { display: grid; gap: 0.5rem; margin-bottom: 1rem; }
 .reconnect-prompt { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.85rem 1rem; border-radius: 0.75rem; background: #fdf2ee; border: 1px solid #e8a090; font-size: 0.9rem; color: #7a2e1e; }
