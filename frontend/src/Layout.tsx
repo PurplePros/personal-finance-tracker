@@ -5,7 +5,7 @@ export default function Layout() {
   const { isRefreshing, isAddingAccount, status, error, refresh, addAccount } = useAccounts()
 
   return (
-    <>
+    <div className="app-layout">
       <header className="app-header">
         <span className="app-brand">Guru</span>
         <div className="header-actions">
@@ -38,6 +38,6 @@ export default function Layout() {
           </button>
         )}
       </footer>
-    </>
+    </div>
   )
 }
