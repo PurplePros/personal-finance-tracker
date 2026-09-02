@@ -63,6 +63,6 @@ class Account(BaseSQLModel, table=True):
     )
 
     @field_serializer("balance")
-    def _serialize_balance(self, value: Decimal) -> float:
-        """Emit balance as a JSON number. Storage stays exact Decimal."""
-        return float(value)
+    def _serialize_balance(self, value: Decimal) -> int:
+        """Emit balance as integer cents. Plaid stores dollars; the API contract is cents."""
+        return int(value * 100)
