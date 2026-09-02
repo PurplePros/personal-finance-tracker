@@ -123,7 +123,7 @@ def test_accounts_endpoint_exposes_dashboard_fields(
                 name="Visa",
                 plaid_type="credit",
                 subtype="credit card",
-                current=-450.00,
+                current=450.00,  # Plaid sends positive for money owed
             )
         ],
     )
@@ -133,6 +133,7 @@ def test_accounts_endpoint_exposes_dashboard_fields(
     assert set(account) >= {"balance", "iso_currency_code", "type"}
     # balance is a JSON integer (cents), not a float.
     assert isinstance(account["balance"], int)
-    assert account["balance"] == -45000  # -$450.00 → -45000 cents
+    # Plaid reports credit balances as positive; we negate to make debt negative.
+    assert account["balance"] == -45000  # $450.00 owed → -45000 cents
     assert account["iso_currency_code"] == "CAD"
     assert account["type"] == "Credit Card"

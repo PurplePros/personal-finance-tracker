@@ -31,9 +31,16 @@ def _map_account_type(plaid_type: str, plaid_subtype: str) -> AccountType:
     )
 
 
-def _read_balance(pa: dict) -> Decimal:
-    """Read the current balance as an exact Decimal, avoiding float drift."""
-    return Decimal(str(pa["balances"]["current"]))
+def _read_balance(pa: dict, account_type: AccountType) -> Decimal:
+    """Read the current balance as an exact Decimal, avoiding float drift.
+
+    Plaid reports credit card balances as positive when money is owed, which
+    is the opposite of our sign convention (negative = liability). Negate them.
+    """
+    balance = Decimal(str(pa["balances"]["current"]))
+    if account_type == AccountType.CREDIT:
+        return -balance
+    return balance
 
 
 def _extract_plaid_error_code(exc: Exception) -> str:
@@ -73,7 +80,7 @@ def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
             account_type = _map_account_type(
                 str(pa["type"]), str(pa.get("subtype", ""))
             )
-            balance = _read_balance(pa)
+            balance = _read_balance(pa, account_type)
             iso_currency_code = str(pa["balances"]["iso_currency_code"])
             existing = session.exec(
                 select(Account).where(
