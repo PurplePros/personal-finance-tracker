@@ -99,6 +99,7 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
   const orchestratorRef = useRef(
     createOrchestrator(syncAccounts, fetchDashboardData, deriveDashboard),
   )
+  const reconnectInFlight = useRef<Promise<void> | null>(null)
 
   const applyOutcome = useCallback(
     (outcome: { dashboard: DashboardViewModel; institutions: Institution[]; results: SyncResult[] }) => {
@@ -184,30 +185,36 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
 
   const reconnect = useCallback(
     async (opts: { itemId?: string; institutionId?: string }) => {
+      if (reconnectInFlight.current) return reconnectInFlight.current
       setIsReconnecting(true)
       setError(null)
-      try {
-        await loadPlaidScript()
-        const linkToken = await createLinkToken(opts)
-        await new Promise<void>((resolve, reject) => {
-          openPlaidLink(
-            linkToken,
-            async () => {
-              try {
-                await refresh()
-                resolve()
-              } catch (cause) {
-                reject(cause instanceof Error ? cause : new Error('Failed to reconnect'))
-              }
-            },
-            resolve, // user cancelled: resolve silently
-          )
-        })
-      } catch (cause) {
-        setError(cause instanceof Error ? cause.message : 'Failed to reconnect account.')
-      } finally {
-        setIsReconnecting(false)
-      }
+      const request = (async () => {
+        try {
+          await loadPlaidScript()
+          const linkToken = await createLinkToken(opts)
+          await new Promise<void>((resolve, reject) => {
+            openPlaidLink(
+              linkToken,
+              async () => {
+                try {
+                  await refresh()
+                  resolve()
+                } catch (cause) {
+                  reject(cause instanceof Error ? cause : new Error('Failed to reconnect'))
+                }
+              },
+              resolve, // user cancelled: resolve silently
+            )
+          })
+        } catch (cause) {
+          setError(cause instanceof Error ? cause.message : 'Failed to reconnect account.')
+        } finally {
+          reconnectInFlight.current = null
+          setIsReconnecting(false)
+        }
+      })()
+      reconnectInFlight.current = request
+      return request
     },
     [refresh],
   )
