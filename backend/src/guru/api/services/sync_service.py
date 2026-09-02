@@ -50,6 +50,8 @@ def _extract_plaid_error_code(exc: Exception) -> str:
     try:
         body = exc.body
         parsed = json.loads(body) if isinstance(body, str) else body
+        if not isinstance(parsed, dict):
+            return ""
         return str(parsed.get("error_code", ""))
     except Exception:
         return ""

@@ -64,5 +64,5 @@ class Account(BaseSQLModel, table=True):
 
     @field_serializer("balance")
     def _serialize_balance(self, value: Decimal) -> int:
-        """Emit balance as integer cents. Plaid stores dollars; the API contract is cents."""
+        """Emit balance as integer cents (API contract); Plaid stores dollars."""
         return int(value * 100)
