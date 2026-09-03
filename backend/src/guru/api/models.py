@@ -1,4 +1,5 @@
 from enum import StrEnum
+from typing import NamedTuple
 
 
 class AccountType(StrEnum):
@@ -22,3 +23,18 @@ class PlaidConfidence(StrEnum):
     MEDIUM = "MEDIUM"
     LOW = "LOW"
     UNKNOWN = "UNKNOWN"
+
+
+class PlaidPFCSignal(NamedTuple):
+    """The three Plaid Personal Finance Category fields that travel together."""
+
+    primary: str | None
+    detailed: str | None
+    confidence: PlaidConfidence | None
+
+
+class UserCategory(NamedTuple):
+    """A holder's manual category assignment (major + subcategory pair)."""
+
+    major: str
+    subcategory: str

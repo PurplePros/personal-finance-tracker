@@ -3,10 +3,11 @@ import uuid
 from decimal import Decimal
 
 from pydantic import field_serializer
+from sqlalchemy import CheckConstraint
 from sqlalchemy.orm import declared_attr
 from sqlmodel import Field, SQLModel
 
-from guru.api.models import AccountType, PlaidConfidence
+from guru.api.models import AccountType, PlaidConfidence, PlaidPFCSignal, UserCategory
 
 
 class BaseSQLModel(SQLModel):
@@ -84,6 +85,14 @@ class Transaction(BaseSQLModel, table=True):
     the API.
     """
 
+    __table_args__ = (
+        # Enforces that user_category is always set or cleared atomically.
+        CheckConstraint(
+            "(user_category_major IS NULL) = (user_category_subcategory IS NULL)",
+            name="ck_transaction_user_category_paired",
+        ),
+    )
+
     account_id: uuid.UUID = Field(
         foreign_key="account.id",
         description="Credit Card Account this transaction belongs to",
@@ -128,9 +137,26 @@ class Transaction(BaseSQLModel, table=True):
 
     # Sticky manual category override set by the holder via PATCH. Both fields
     # are null when no override exists; both are set together when one does.
+    # The DB CHECK constraint ck_transaction_user_category_paired enforces atomicity.
     user_category_major: str | None = Field(
         default=None, description="Holder's manual major Category override"
     )
     user_category_subcategory: str | None = Field(
         default=None, description="Holder's manual Subcategory override"
     )
+
+    @property
+    def pfc_signal(self) -> PlaidPFCSignal:
+        """The three Plaid PFC fields bundled for the categorization resolver."""
+        return PlaidPFCSignal(
+            self.plaid_primary_category,
+            self.plaid_detailed_category,
+            self.plaid_confidence,
+        )
+
+    @property
+    def user_category(self) -> UserCategory | None:
+        """The holder's manual category override, or None if no override is set."""
+        if self.user_category_major is None:
+            return None
+        return UserCategory(self.user_category_major, self.user_category_subcategory)  # type: ignore[arg-type]

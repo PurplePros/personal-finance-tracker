@@ -17,7 +17,8 @@ CREATE TABLE `transaction` (
   `user_category_major` varchar NULL,
   `user_category_subcategory` varchar NULL,
   PRIMARY KEY (`id`),
-  CONSTRAINT `0` FOREIGN KEY (`account_id`) REFERENCES `account` (`id`) ON UPDATE NO ACTION ON DELETE NO ACTION
+  CONSTRAINT `0` FOREIGN KEY (`account_id`) REFERENCES `account` (`id`) ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT `ck_transaction_user_category_paired` CHECK ((user_category_major IS NULL) = (user_category_subcategory IS NULL))
 );
 -- Create index "transaction_plaid_transaction_id" to table: "transaction"
 CREATE UNIQUE INDEX `transaction_plaid_transaction_id` ON `transaction` (`plaid_transaction_id`);
