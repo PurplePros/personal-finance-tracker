@@ -1,4 +1,4 @@
-/** Mirrors the Guru backend JSON API (`GET /api/institutions`, `GET /api/accounts`). */
+/** Mirrors the Guru backend JSON API (`GET /api/institutions`, `GET /api/accounts`, `GET /api/transactions`, `GET /api/categories`). */
 
 export type CurrencyCode = string
 
@@ -19,6 +19,34 @@ export interface SyncResult {
   status: 'ok' | 'error'
   error?: string
   error_code?: string
+}
+
+/** Who assigned the effective category: the holder (manual edit), Plaid with confidence >= MEDIUM, or Plaid below MEDIUM. */
+export type CategorySource = 'user' | 'plaid' | 'plaid_low_confidence'
+
+export interface Category {
+  major: string
+  subcategory: string | null
+}
+
+/** One entry from `GET /api/categories`. */
+export interface CategoryTaxonomy {
+  major: string
+  subcategories: string[]
+}
+
+/** One entry from `GET /api/transactions`. Amount is integer cents; positive = spending outflow, negative = refund/credit. */
+export interface Transaction {
+  id: string
+  account_id: string
+  /** ISO date string: YYYY-MM-DD */
+  date: string
+  merchant_name: string | null
+  amount: number
+  pending: boolean
+  category: Category
+  category_source: CategorySource
+  is_spending: boolean
 }
 
 export interface Account {
