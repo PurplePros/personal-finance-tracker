@@ -1,3 +1,4 @@
+import datetime
 import uuid
 from decimal import Decimal
 
@@ -5,7 +6,7 @@ from pydantic import field_serializer
 from sqlalchemy.orm import declared_attr
 from sqlmodel import Field, SQLModel
 
-from guru.api.models import AccountType
+from guru.api.models import AccountType, PlaidConfidence
 
 
 class BaseSQLModel(SQLModel):
@@ -38,6 +39,10 @@ class Institution(BaseSQLModel, table=True):
         default=None, description="Plaid item ID for this connection"
     )
     holder: str = Field(default="", description="Name of the account holder")
+    # Opaque cursor Plaid returns after each transaction sync; null before first sync.
+    transactions_cursor: str | None = Field(
+        default=None, description="Plaid transactions sync cursor for delta fetches"
+    )
 
 
 class Account(BaseSQLModel, table=True):
@@ -66,3 +71,66 @@ class Account(BaseSQLModel, table=True):
     def _serialize_balance(self, value: Decimal) -> int:
         """Emit balance as integer cents (API contract); Plaid stores dollars."""
         return int(value * 100)
+
+
+class Transaction(BaseSQLModel, table=True):
+    """A single posted or pending money movement on a Credit Card Account.
+
+    Stores only the raw Plaid signals needed to recompute Effective Category at
+    read time (ADR 0001). No derived category column is stored.
+
+    Amount sign follows Plaid: positive = outflow (purchase/fee), negative =
+    inflow (refund/credit). Stored as Decimal; emitted as integer cents over
+    the API.
+    """
+
+    account_id: uuid.UUID = Field(
+        foreign_key="account.id",
+        description="Credit Card Account this transaction belongs to",
+    )
+    plaid_transaction_id: str = Field(
+        unique=True,
+        description="Plaid transaction ID; used as the upsert key on sync",
+    )
+    # Links a posted transaction back to the pending one it replaced.
+    pending_transaction_id: str | None = Field(
+        default=None,
+        description="Plaid ID of the pending transaction this posting replaced",
+    )
+
+    # Raw PFC signals for read-time Effective Category resolution.
+    plaid_primary_category: str | None = Field(
+        default=None,
+        description="Plaid personal_finance_category.primary (e.g. FOOD_AND_DRINK)",
+    )
+    plaid_detailed_category: str | None = Field(
+        default=None,
+        description="Plaid personal_finance_category.detailed (e.g. FOOD_AND_DRINK_RESTAURANTS)",
+    )
+    plaid_confidence: PlaidConfidence | None = Field(
+        default=None,
+        description="Plaid personal_finance_category.confidence_level",
+    )
+
+    merchant_name: str | None = Field(
+        default=None, description="Merchant name as enriched by Plaid"
+    )
+    name: str = Field(
+        min_length=1, description="Raw transaction name as returned by Plaid"
+    )
+    amount: Decimal = Field(
+        max_digits=20,
+        decimal_places=4,
+        description="Transaction amount in account currency (positive = outflow)",
+    )
+    date: datetime.date = Field(description="Posted or expected posting date")
+    pending: bool = Field(default=False, description="True while the charge is pending")
+
+    # Sticky manual category override set by the holder via PATCH. Both fields
+    # are null when no override exists; both are set together when one does.
+    user_category_major: str | None = Field(
+        default=None, description="Holder's manual major Category override"
+    )
+    user_category_subcategory: str | None = Field(
+        default=None, description="Holder's manual Subcategory override"
+    )

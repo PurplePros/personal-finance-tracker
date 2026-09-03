@@ -12,3 +12,13 @@ class AccountType(StrEnum):
     CHEQUING = "Chequing"
     CREDIT = "Credit Card"
     INVESTMENT = "Investment"
+
+
+class PlaidConfidence(StrEnum):
+    """Confidence level Plaid assigns to a Personal Finance Category signal."""
+
+    VERY_HIGH = "VERY_HIGH"
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+    UNKNOWN = "UNKNOWN"
