@@ -492,3 +492,131 @@ def test_categories_endpoint_returns_full_taxonomy(client):
     # Every non-terminal major ends with Other; Miscellaneous is terminal.
     assert by_major["Food and personal items"][-1] == "Other"
     assert by_major["Miscellaneous"] == []
+
+
+def test_patch_override_reflected_in_response_with_source_user(
+    client, fake_plaid, seed_institution
+):
+    """PATCH sets user_category; response shows the override with source=user."""
+    _seed_credit_card(fake_plaid, seed_institution)
+    fake_plaid.set_transactions(
+        "tok-1",
+        added=[
+            plaid_transaction(
+                "txn-1",
+                "cc-1",
+                42.50,
+                primary_category="FOOD_AND_DRINK",
+                detailed_category="FOOD_AND_DRINK_RESTAURANT",
+                confidence="VERY_HIGH",
+            )
+        ],
+    )
+    client.post("/api/sync")
+    txn_id = client.get("/api/transactions").json()[0]["id"]
+
+    response = client.patch(
+        f"/api/transactions/{txn_id}",
+        json={"category": {"major": "Shopping", "subcategory": "Clothing"}},
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert result["id"] == txn_id
+    assert result["category"] == {"major": "Shopping", "subcategory": "Clothing"}
+    assert result["category_source"] == "user"
+
+
+def test_patch_override_survives_subsequent_sync(
+    client, fake_plaid, seed_institution
+):
+    """An override set via PATCH is not replaced by a later Sync."""
+    _seed_credit_card(fake_plaid, seed_institution)
+    fake_plaid.set_transactions(
+        "tok-1",
+        added=[
+            plaid_transaction(
+                "txn-1",
+                "cc-1",
+                42.50,
+                primary_category="FOOD_AND_DRINK",
+                detailed_category="FOOD_AND_DRINK_RESTAURANT",
+                confidence="VERY_HIGH",
+            )
+        ],
+    )
+    client.post("/api/sync")
+    txn_id = client.get("/api/transactions").json()[0]["id"]
+
+    client.patch(
+        f"/api/transactions/{txn_id}",
+        json={"category": {"major": "Shopping", "subcategory": "Clothing"}},
+    )
+
+    # Sync again with the same transaction (modified).
+    fake_plaid.set_transactions(
+        "tok-1",
+        modified=[
+            plaid_transaction(
+                "txn-1",
+                "cc-1",
+                42.50,
+                primary_category="FOOD_AND_DRINK",
+                detailed_category="FOOD_AND_DRINK_RESTAURANT",
+                confidence="VERY_HIGH",
+            )
+        ],
+    )
+    client.post("/api/sync")
+
+    txn = client.get("/api/transactions").json()[0]
+    assert txn["category"] == {"major": "Shopping", "subcategory": "Clothing"}
+    assert txn["category_source"] == "user"
+
+
+def test_patch_clear_reverts_to_plaid_source(client, fake_plaid, seed_institution):
+    """Clearing the override (category=null) reverts source to plaid."""
+    _seed_credit_card(fake_plaid, seed_institution)
+    fake_plaid.set_transactions(
+        "tok-1",
+        added=[
+            plaid_transaction(
+                "txn-1",
+                "cc-1",
+                42.50,
+                primary_category="FOOD_AND_DRINK",
+                detailed_category="FOOD_AND_DRINK_RESTAURANT",
+                confidence="VERY_HIGH",
+            )
+        ],
+    )
+    client.post("/api/sync")
+    txn_id = client.get("/api/transactions").json()[0]["id"]
+
+    client.patch(
+        f"/api/transactions/{txn_id}",
+        json={"category": {"major": "Shopping", "subcategory": "Clothing"}},
+    )
+    assert client.get("/api/transactions").json()[0]["category_source"] == "user"
+
+    response = client.patch(f"/api/transactions/{txn_id}", json={"category": None})
+    assert response.status_code == 200
+    result = response.json()
+    assert result["category"] == {"major": "Food and personal items", "subcategory": "Restaurants"}
+    assert result["category_source"] == "plaid"
+
+
+def test_patch_invalid_category_returns_422(client, fake_plaid, seed_institution):
+    """PATCH with a category not in the taxonomy returns 422."""
+    _seed_credit_card(fake_plaid, seed_institution)
+    fake_plaid.set_transactions(
+        "tok-1",
+        added=[plaid_transaction("txn-1", "cc-1", 42.50)],
+    )
+    client.post("/api/sync")
+    txn_id = client.get("/api/transactions").json()[0]["id"]
+
+    response = client.patch(
+        f"/api/transactions/{txn_id}",
+        json={"category": {"major": "NotReal", "subcategory": "Fake"}},
+    )
+    assert response.status_code == 422
