@@ -1,12 +1,14 @@
+import datetime
 import json
+import uuid
 from decimal import Decimal
 
 import plaid
 from sqlmodel import Session, select
 
-from guru.api.models import AccountType
+from guru.api.models import AccountType, PlaidConfidence
 from guru.api.plaid import PlaidService
-from guru.db.models import Account
+from guru.db.models import Account, Institution, Transaction
 from guru.db.repository import InstitutionRepository
 
 PLAID_TYPE_MAP: dict[tuple[str, str], AccountType] = {
@@ -55,6 +57,96 @@ def _extract_plaid_error_code(exc: Exception) -> str:
         return str(parsed.get("error_code", ""))
     except Exception:
         return ""
+
+
+def _parse_confidence(raw: str | None) -> PlaidConfidence | None:
+    """Coerce Plaid's confidence_level string into the enum, tolerating unknowns."""
+    if raw is None:
+        return None
+    try:
+        return PlaidConfidence(raw)
+    except ValueError:
+        return PlaidConfidence.UNKNOWN
+
+
+def _plaid_transaction_fields(pt: dict, account_id: uuid.UUID) -> dict:
+    """Map a raw Plaid transaction dict to Transaction column values.
+
+    Excludes plaid_transaction_id, which is the immutable upsert key set once at
+    insert. The result seeds a new row and updates an existing one, so the
+    mapping is written exactly once for both paths.
+    """
+    pfc = pt.get("personal_finance_category") or {}
+    return {
+        "account_id": account_id,
+        "pending_transaction_id": pt.get("pending_transaction_id"),
+        "plaid_primary_category": pfc.get("primary"),
+        "plaid_detailed_category": pfc.get("detailed"),
+        "plaid_confidence": _parse_confidence(pfc.get("confidence_level")),
+        "merchant_name": pt.get("merchant_name"),
+        "name": pt["name"],
+        "amount": Decimal(str(pt["amount"])),
+        "date": datetime.date.fromisoformat(pt["date"]),
+        "pending": bool(pt["pending"]),
+    }
+
+
+def _sync_transactions(
+    session: Session, institution: Institution, plaid_service: PlaidService
+) -> int:
+    """Fetch and persist transaction deltas for one institution.
+
+    Upserts added/modified rows keyed by Plaid transaction id, deletes removed
+    rows, and persists the next cursor. Only transactions on this institution's
+    Credit Card accounts are stored; others are ignored. Returns the number of
+    added/modified transactions applied.
+    """
+    result = plaid_service.fetch_transactions(
+        institution.plaid_access_token, institution.transactions_cursor
+    )
+
+    # Map Plaid account ids to our Credit Card account ids for this institution.
+    credit_accounts = session.exec(
+        select(Account).where(
+            Account.institution_id == institution.id,
+            Account.type == AccountType.CREDIT,
+        )
+    ).all()
+    account_by_plaid_id = {a.plaid_id: a.id for a in credit_accounts}
+
+    applied = 0
+    for pt in [*result.added, *result.modified]:
+        account_id = account_by_plaid_id.get(pt["account_id"])
+        if account_id is None:
+            continue
+        fields = _plaid_transaction_fields(pt, account_id)
+        existing = session.exec(
+            select(Transaction).where(
+                Transaction.plaid_transaction_id == pt["transaction_id"]
+            )
+        ).first()
+        if existing is None:
+            session.add(
+                Transaction(plaid_transaction_id=pt["transaction_id"], **fields)
+            )
+        else:
+            for name, value in fields.items():
+                setattr(existing, name, value)
+        applied += 1
+
+    for removed_id in result.removed:
+        row = session.exec(
+            select(Transaction).where(
+                Transaction.plaid_transaction_id == removed_id
+            )
+        ).first()
+        if row is not None:
+            session.delete(row)
+
+    institution.transactions_cursor = result.next_cursor
+    session.add(institution)
+    session.commit()
+    return applied
 
 
 def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
@@ -121,12 +213,22 @@ def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
                 )
 
         session.commit()
-        results.append(
-            {
-                "institution": str(institution.name),
-                "status": "ok",
-                "accounts": synced,
-            }
-        )
+
+        result = {
+            "institution": str(institution.name),
+            "status": "ok",
+            "accounts": synced,
+        }
+        try:
+            result["transactions"] = _sync_transactions(
+                session, institution, plaid_service
+            )
+        except Exception as e:
+            # Accounts already synced; a transaction-fetch failure is isolated to
+            # this institution so the rest of the Sync still completes.
+            session.rollback()
+            result["transactions_error"] = str(e)
+            result["transactions_error_code"] = _extract_plaid_error_code(e)
+        results.append(result)
 
     return results

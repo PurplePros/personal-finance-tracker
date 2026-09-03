@@ -25,6 +25,18 @@ class PlaidConfidence(StrEnum):
     UNKNOWN = "UNKNOWN"
 
 
+class CategorySource(StrEnum):
+    """Where a Transaction's Effective Category came from.
+
+    ``plaid_low_confidence`` is still a Plaid-derived Category, flagged for the
+    holder to review because Plaid's confidence was below MEDIUM.
+    """
+
+    USER = "user"
+    PLAID = "plaid"
+    PLAID_LOW_CONFIDENCE = "plaid_low_confidence"
+
+
 class PlaidPFCSignal(NamedTuple):
     """The three Plaid Personal Finance Category fields that travel together."""
 
