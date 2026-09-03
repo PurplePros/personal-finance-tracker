@@ -2,7 +2,7 @@
 
 Guru is a local, single-user personal finance tracker. It links financial
 institutions via Plaid and shows a breakdown of accounts with total assets and
-liabilities.
+liabilities, plus a breakdown of credit-card spending by category over time.
 
 ## Terms
 
@@ -53,4 +53,48 @@ liabilities.
 The act of fetching current account data (including balances) from Plaid for
 every linked Institution and upserting it locally. Triggered by `POST /api/sync`
 — on demand via a Refresh action, automatically every 10 minutes while the app
-is open, and once on first load if no accounts exist yet.
+is open, and once on first load if no accounts exist yet. Sync also pulls
+Transactions for every Institution.
+
+## Spending
+
+### Transaction
+A single posted or pending money movement on an Account, pulled from Plaid (a
+purchase, refund, fee, cash withdrawal, or payment). Belongs to one Account and
+carries a merchant name, amount, date, and pending flag. Only Credit Card
+accounts surface Transactions in v1.
+
+### Spending
+The net outflow over a period shown by the Spending view: purchases minus
+refunds (a return reduces spending, so a period or Category can go negative).
+Transfers and card payments are excluded (see Finances); bank fees and cash
+withdrawals are included. Pending Transactions count.
+
+### Category / Subcategory
+The classification a Transaction is filed under. A **major Category** (e.g. Food
+and drink, Shopping, Finances) contains **Subcategories** (e.g. Restaurants,
+Groceries and personal items). Every major Category has an **Other**
+Subcategory for things that belong to the major but to no specific Subcategory.
+The set of Categories is fixed, not user-defined.
+
+### Effective Category
+The Category actually displayed for a Transaction, resolved by the first source
+with an opinion: the holder's manual assignment wins; otherwise Plaid's
+best-guess category, regardless of confidence. When Plaid's confidence is below
+MEDIUM, the assignment is flagged as low-confidence in the UI. A manual
+assignment is sticky and survives re-sync.
+
+### Miscellaneous
+A deliberate terminal Category for Transactions that genuinely fit no other
+major Category. It is chosen, never a fallback for uncertainty.
+
+### Finances
+The major Category for money-management Transactions: bank fees and interest,
+cash withdrawals, and Transfers. Fees and cash withdrawals count as Spending;
+Transfers do not.
+
+### Transfer
+A Transaction that moves money rather than spending it (a credit-card payment,
+or moving money between one's own accounts). Listed under Finances but never
+counted in Spending. Ambiguous person-to-person transfers (e.g. Interac
+e-Transfers) are out of scope until chequing/savings Accounts are added.
