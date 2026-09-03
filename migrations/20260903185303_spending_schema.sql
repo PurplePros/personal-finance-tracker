@@ -22,3 +22,7 @@ CREATE TABLE `transaction` (
 );
 -- Create index "transaction_plaid_transaction_id" to table: "transaction"
 CREATE UNIQUE INDEX `transaction_plaid_transaction_id` ON `transaction` (`plaid_transaction_id`);
+-- Create index "ix_transaction_account_id" to table: "transaction"
+CREATE INDEX `ix_transaction_account_id` ON `transaction` (`account_id`);
+-- Create index "ix_transaction_pending_transaction_id" to table: "transaction"
+CREATE INDEX `ix_transaction_pending_transaction_id` ON `transaction` (`pending_transaction_id`);

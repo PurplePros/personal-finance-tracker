@@ -3,7 +3,7 @@ import uuid
 from decimal import Decimal
 
 from pydantic import field_serializer
-from sqlalchemy import CheckConstraint
+from sqlalchemy import CheckConstraint, Index
 from sqlalchemy.orm import declared_attr
 from sqlmodel import Field, SQLModel
 
@@ -91,6 +91,13 @@ class Transaction(BaseSQLModel, table=True):
             "(user_category_major IS NULL) = (user_category_subcategory IS NULL)",
             name="ck_transaction_user_category_paired",
         ),
+        # GET /api/transactions filters by account; without this every query is
+        # a full table scan (SQLite does not auto-index FK columns).
+        Index("ix_transaction_account_id", "account_id"),
+        # Sync looks up the pending row by plaid_transaction_id when a posted
+        # transaction arrives with pending_transaction_id set, in order to carry
+        # the holder's manual override forward before deleting the pending row.
+        Index("ix_transaction_pending_transaction_id", "pending_transaction_id"),
     )
 
     account_id: uuid.UUID = Field(
@@ -129,7 +136,7 @@ class Transaction(BaseSQLModel, table=True):
     )
     amount: Decimal = Field(
         max_digits=20,
-        decimal_places=4,
+        decimal_places=2,
         description="Transaction amount in account currency (positive = outflow)",
     )
     date: datetime.date = Field(description="Posted or expected posting date")
