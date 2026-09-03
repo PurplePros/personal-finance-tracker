@@ -14,6 +14,7 @@ from sqlmodel import Session, SQLModel
 
 from guru.api.app import create_app
 from guru.api.dependencies import get_plaid_service
+from guru.api.plaid import TransactionsSyncResult
 from guru.db.models import Institution
 
 
@@ -27,8 +28,13 @@ class FakePlaidService:
     def __init__(self) -> None:
         self._accounts_by_token: dict[str, list[dict]] = {}
         self._errors_by_token: dict[str, Exception] = {}
+        self._transactions_by_token: dict[str, TransactionsSyncResult] = {}
+        self._transactions_errors_by_token: dict[str, Exception] = {}
         self._link_token: str = "link-token-sandbox"
         self._exchange_result: tuple[str, str] = ("access-token-new", "item-id-new")
+        # Cursors passed to `fetch_transactions`, in call order, for assertions
+        # that later Syncs request deltas rather than re-backfilling.
+        self.fetch_cursors: list[str | None] = []
 
     def set_accounts(self, access_token: str, accounts: list[dict]) -> None:
         """Set the accounts that `list_accounts` returns for a token."""
@@ -37,6 +43,29 @@ class FakePlaidService:
     def set_error(self, access_token: str, exc: Exception) -> None:
         """Make `list_accounts` raise exc for the given access token."""
         self._errors_by_token[access_token] = exc
+
+    def set_transactions_error(self, access_token: str, exc: Exception) -> None:
+        """Make `fetch_transactions` raise exc for the given access token."""
+        self._transactions_errors_by_token[access_token] = exc
+
+    def set_transactions(
+        self,
+        access_token: str,
+        added: list[dict] | None = None,
+        modified: list[dict] | None = None,
+        removed: list[str] | None = None,
+    ) -> None:
+        """Program the delta batches `fetch_transactions` returns for a token.
+
+        Reprogram between `POST /api/sync` calls to simulate later-sync deltas,
+        the way `set_accounts` is reprogrammed across syncs.
+        """
+        self._transactions_by_token[access_token] = TransactionsSyncResult(
+            added=added or [],
+            modified=modified or [],
+            removed=removed or [],
+            next_cursor="cursor-next",
+        )
 
     def set_link_token(self, link_token: str) -> None:
         """Set the link_token that `create_link_token` returns."""
@@ -51,6 +80,20 @@ class FakePlaidService:
         if access_token in self._errors_by_token:
             raise self._errors_by_token[access_token]
         return self._accounts_by_token.get(access_token, [])
+
+    def fetch_transactions(
+        self, access_token: str, cursor: str | None = None
+    ) -> TransactionsSyncResult:
+        """Return the delta batches programmed for the given access token."""
+        self.fetch_cursors.append(cursor)
+        if access_token in self._transactions_errors_by_token:
+            raise self._transactions_errors_by_token[access_token]
+        return self._transactions_by_token.get(
+            access_token,
+            TransactionsSyncResult(
+                added=[], modified=[], removed=[], next_cursor="cursor-next"
+            ),
+        )
 
     def create_link_token(self, access_token: str | None = None) -> str:
         """Return the configured link token."""

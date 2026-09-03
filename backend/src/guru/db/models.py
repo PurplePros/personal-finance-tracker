@@ -108,9 +108,10 @@ class Transaction(BaseSQLModel, table=True):
         # GET /api/transactions filters by account; without this every query is
         # a full table scan (SQLite does not auto-index FK columns).
         Index("ix_transaction_account_id", "account_id"),
-        # Sync looks up the pending row by plaid_transaction_id when a posted
-        # transaction arrives with pending_transaction_id set, in order to carry
-        # the holder's manual override forward before deleting the pending row.
+        # Sync stores pending_transaction_id so a posted transaction can be
+        # traced back to the pending row it replaced. Indexed for the future
+        # lookup that will carry a holder's manual override forward across the
+        # pending -> posted transition; the transition itself is applied as-is.
         Index("ix_transaction_pending_transaction_id", "pending_transaction_id"),
     )
 

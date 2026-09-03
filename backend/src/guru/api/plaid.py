@@ -1,4 +1,5 @@
 import logging
+from typing import NamedTuple
 
 import plaid
 from plaid.api import plaid_api
@@ -9,9 +10,29 @@ from plaid.model.item_public_token_exchange_request import (
 )
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
 from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
+from plaid.model.link_token_transactions import LinkTokenTransactions
 from plaid.model.products import Products
+from plaid.model.transactions_sync_request import TransactionsSyncRequest
+
+# Days of transaction history to request at link time. Plaid backfills up to this
+# window on the first Sync; the Spending view shows ~13 months, so request ~13.
+_BACKFILL_DAYS = 397
 
 logger = logging.getLogger(__name__)
+
+
+class TransactionsSyncResult(NamedTuple):
+    """Aggregated result of a full cursor-based transactions sync.
+
+    `added` and `modified` are raw Plaid transaction dicts; `removed` is the
+    list of Plaid transaction ids that no longer exist. `next_cursor` is
+    persisted on the Institution so the next sync fetches only deltas.
+    """
+
+    added: list[dict]
+    modified: list[dict]
+    removed: list[str]
+    next_cursor: str
 
 
 class PlaidService:
@@ -64,6 +85,52 @@ class PlaidService:
         response = self._api_client.accounts_get(request)
         return response["accounts"]
 
+    def fetch_transactions(
+        self, access_token: str, cursor: str | None = None
+    ) -> TransactionsSyncResult:
+        """Fetch transaction deltas via Plaid's cursor-based sync.
+
+        Pages through `transactions/sync` until `has_more` is false, aggregating
+        every batch into one result. A null cursor performs the initial backfill
+        (Plaid returns ~24 months); a non-null cursor returns only changes since.
+
+        Args:
+            access_token: Plaid access token for the linked institution.
+            cursor: Cursor from the previous sync, or None for the first sync.
+
+        Returns:
+            A TransactionsSyncResult with the aggregated added / modified /
+            removed batches and the cursor to persist for the next sync.
+
+        Raises:
+            plaid.ApiException: If the Plaid API request fails.
+        """
+        added: list[dict] = []
+        modified: list[dict] = []
+        removed: list[str] = []
+        next_cursor = cursor or ""
+
+        has_more = True
+        while has_more:
+            kwargs: dict = {"access_token": access_token}
+            if next_cursor:
+                kwargs["cursor"] = next_cursor
+            response = self._api_client.transactions_sync(
+                TransactionsSyncRequest(**kwargs)
+            )
+            added.extend(response["added"])
+            modified.extend(response["modified"])
+            removed.extend(r["transaction_id"] for r in response["removed"])
+            next_cursor = response["next_cursor"]
+            has_more = response["has_more"]
+
+        return TransactionsSyncResult(
+            added=added,
+            modified=modified,
+            removed=removed,
+            next_cursor=next_cursor,
+        )
+
     def create_link_token(self, access_token: str | None = None) -> str:
         """Create a Plaid Link token.
 
@@ -80,6 +147,8 @@ class PlaidService:
             "client_name": self._CLIENT_NAME,
             "country_codes": [CountryCode("CA")],
             "language": "en",
+            # Bound the first-Sync backfill to the Spending view's window.
+            "transactions": LinkTokenTransactions(days_requested=_BACKFILL_DAYS),
         }
         if access_token is not None:
             kwargs["access_token"] = access_token
