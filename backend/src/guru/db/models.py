@@ -15,7 +15,7 @@ def _now() -> datetime.datetime:
 
 
 class BaseSQLModel(SQLModel):
-    """Base model providing a UUID primary key, automatic table naming, and audit timestamps."""
+    """Base model with UUID PK, auto table naming, and audit timestamps."""
 
     __abstract__ = True
 
@@ -135,7 +135,7 @@ class Transaction(BaseSQLModel, table=True):
     )
     plaid_detailed_category: str | None = Field(
         default=None,
-        description="Plaid personal_finance_category.detailed (e.g. FOOD_AND_DRINK_RESTAURANTS)",
+        description="Plaid personal_finance_category.detailed (e.g. RESTAURANTS)",
     )
     plaid_confidence: PlaidConfidence | None = Field(
         default=None,
