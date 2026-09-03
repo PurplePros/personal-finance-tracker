@@ -10,8 +10,12 @@ from sqlmodel import Field, SQLModel
 from guru.api.models import AccountType, PlaidConfidence, PlaidPFCSignal, UserCategory
 
 
+def _now() -> datetime.datetime:
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
 class BaseSQLModel(SQLModel):
-    """Base model providing a UUID primary key and automatic table naming."""
+    """Base model providing a UUID primary key, automatic table naming, and audit timestamps."""
 
     __abstract__ = True
 
@@ -19,6 +23,16 @@ class BaseSQLModel(SQLModel):
         default_factory=uuid.uuid7,
         primary_key=True,
         description="Primary key, auto-generated UUIDv7",
+    )
+    created_at: datetime.datetime = Field(
+        default_factory=_now,
+        sa_column_kwargs={"nullable": False},
+        description="UTC timestamp when this row was first inserted",
+    )
+    updated_at: datetime.datetime = Field(
+        default_factory=_now,
+        sa_column_kwargs={"nullable": False, "onupdate": _now},
+        description="UTC timestamp of the last update to this row",
     )
 
     @declared_attr  # type: ignore
@@ -164,6 +178,6 @@ class Transaction(BaseSQLModel, table=True):
     @property
     def user_category(self) -> UserCategory | None:
         """The holder's manual category override, or None if no override is set."""
-        if self.user_category_major is None:
+        if self.user_category_major is None or self.user_category_subcategory is None:
             return None
-        return UserCategory(self.user_category_major, self.user_category_subcategory)  # type: ignore[arg-type]
+        return UserCategory(self.user_category_major, self.user_category_subcategory)
