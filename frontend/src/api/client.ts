@@ -1,4 +1,4 @@
-import type { Account, Institution, SyncResult } from './types'
+import type { Account, CategoryTaxonomy, Institution, SyncResult, Transaction } from './types'
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init)
@@ -53,4 +53,26 @@ export async function exchangeToken(
     },
   )
   return result.institution_id
+}
+
+export async function fetchSpendingData(): Promise<{
+  transactions: Transaction[]
+  categories: CategoryTaxonomy[]
+}> {
+  const [transactions, categories] = await Promise.all([
+    requestJson<Transaction[]>('/api/transactions'),
+    requestJson<CategoryTaxonomy[]>('/api/categories'),
+  ])
+  return { transactions, categories }
+}
+
+export async function patchTransactionCategory(
+  txnId: string,
+  category: { major: string; subcategory: string } | null,
+): Promise<Transaction> {
+  return requestJson<Transaction>(`/api/transactions/${txnId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ category }),
+  })
 }
