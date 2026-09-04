@@ -601,7 +601,10 @@ def test_patch_clear_reverts_to_plaid_source(client, fake_plaid, seed_institutio
     response = client.patch(f"/api/transactions/{txn_id}", json={"category": None})
     assert response.status_code == 200
     result = response.json()
-    assert result["category"] == {"major": "Food and personal items", "subcategory": "Restaurants"}
+    assert result["category"] == {
+        "major": "Food and personal items",
+        "subcategory": "Restaurants",
+    }
     assert result["category_source"] == "plaid"
 
 

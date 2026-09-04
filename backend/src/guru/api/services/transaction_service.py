@@ -63,9 +63,11 @@ def patch_transaction_category(
     Returns the serialized Transaction on success, or None if not found.
     Raises InvalidCategoryError if category is not in the taxonomy.
     """
-    if category is not None and not validate_user_category(category.major, category.subcategory):
+    if category is not None and not validate_user_category(
+        category.major, category.subcategory
+    ):
         raise InvalidCategoryError(
-            f"Category ({category.major!r}, {category.subcategory!r}) is not in the taxonomy"
+            f"Category ({category.major!r}, {category.subcategory!r}) not in taxonomy"
         )
 
     txn = session.get(Transaction, txn_id)
