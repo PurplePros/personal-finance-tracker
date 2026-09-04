@@ -125,6 +125,12 @@ _DETAILED_TO_CATEGORY: dict[str, tuple[str, str]] = {
 }
 
 
+def validate_user_category(major: str, subcategory: str) -> bool:
+    """Return True if (major, subcategory) is a valid taxonomy pair, False otherwise."""
+    subcategories = TAXONOMY.get(major)
+    return subcategories is not None and subcategory in subcategories
+
+
 def _map_pfc(signal: PlaidPFCSignal) -> tuple[str, str | None]:
     """Resolve a Plaid PFC signal to a taxonomy (major, subcategory).
 

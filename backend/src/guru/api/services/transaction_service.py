@@ -1,9 +1,10 @@
 import datetime
+import uuid
 
 from sqlmodel import Session, col, select
 
-from guru.api.categorization import ResolvedCategory
-from guru.api.models import AccountType
+from guru.api.categorization import ResolvedCategory, validate_user_category
+from guru.api.models import AccountType, UserCategory
 from guru.db.models import Account, Transaction
 
 # First Sync backfills roughly 13 months; the read endpoint defaults to the
@@ -46,6 +47,43 @@ def list_transactions(
     ).all()
 
     return [_serialize(txn) for txn in rows]
+
+
+class InvalidCategoryError(ValueError):
+    """Raised when a category (major, subcategory) pair is not in the taxonomy."""
+
+
+def patch_transaction_category(
+    session: Session,
+    txn_id: uuid.UUID,
+    category: UserCategory | None,
+) -> dict | None:
+    """Set or clear the user_category override on a Transaction.
+
+    Returns the serialized Transaction on success, or None if not found.
+    Raises InvalidCategoryError if category is not in the taxonomy.
+    """
+    if category is not None and not validate_user_category(
+        category.major, category.subcategory
+    ):
+        raise InvalidCategoryError(
+            f"Category ({category.major!r}, {category.subcategory!r}) not in taxonomy"
+        )
+
+    txn = session.get(Transaction, txn_id)
+    if txn is None:
+        return None
+
+    if category is not None:
+        txn.user_category_major = category.major
+        txn.user_category_subcategory = category.subcategory
+    else:
+        txn.user_category_major = None
+        txn.user_category_subcategory = None
+
+    session.commit()
+    session.refresh(txn)
+    return _serialize(txn)
 
 
 def _serialize(txn: Transaction) -> dict:
