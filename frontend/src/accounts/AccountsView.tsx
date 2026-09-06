@@ -111,7 +111,7 @@ export default function AccountsView() {
       {dashboard && (
         dashboard.institutions.length > 0
           ? <InstitutionList institutions={dashboard.institutions} />
-          : <p className="empty-state">No Canadian accounts to show yet.</p>
+          : <p className="empty-state">No accounts to show yet.</p>
       )}
     </div>
   )

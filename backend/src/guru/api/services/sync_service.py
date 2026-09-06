@@ -86,7 +86,9 @@ def _plaid_transaction_fields(pt: dict, account_id: uuid.UUID) -> dict:
         "merchant_name": pt.get("merchant_name"),
         "name": pt["name"],
         "amount": Decimal(str(pt["amount"])),
-        "date": datetime.date.fromisoformat(pt["date"]),
+        "date": pt["date"]
+        if isinstance(pt["date"], datetime.date)
+        else datetime.date.fromisoformat(pt["date"]),
         "pending": bool(pt["pending"]),
     }
 
@@ -136,9 +138,7 @@ def _sync_transactions(
 
     for removed_id in result.removed:
         row = session.exec(
-            select(Transaction).where(
-                Transaction.plaid_transaction_id == removed_id
-            )
+            select(Transaction).where(Transaction.plaid_transaction_id == removed_id)
         ).first()
         if row is not None:
             session.delete(row)

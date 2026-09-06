@@ -98,6 +98,7 @@ def _serialize(txn: Transaction) -> dict:
         "id": str(txn.id),
         "account_id": str(txn.account_id),
         "date": txn.date.isoformat(),
+        "name": txn.name,
         "merchant_name": txn.merchant_name,
         "amount": int(txn.amount * 100),
         "pending": txn.pending,
