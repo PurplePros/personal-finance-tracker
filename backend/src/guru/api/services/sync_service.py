@@ -180,6 +180,7 @@ def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
             continue
 
         synced = []
+        new_spending_account = False
         for pa in plaid_accounts:
             account_type = _map_account_type(
                 str(pa["type"]), str(pa.get("subtype", ""))
@@ -221,6 +222,20 @@ def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
                         "action": "created",
                     }
                 )
+                if account_type in SPENDING_ACCOUNT_TYPES:
+                    new_spending_account = True
+
+        # A new spending account means the existing cursor only covers deltas
+        # since the institution was first linked - historical transactions for the
+        # new account would be silently absent. Reset to None so the next sync
+        # performs a full backfill across all spending accounts.
+        if new_spending_account and institution.transactions_cursor is not None:
+            logger.info(
+                "New spending account for institution %s; resetting cursor.",
+                institution.id,
+            )
+            institution.transactions_cursor = None
+            session.add(institution)
 
         session.commit()
 
