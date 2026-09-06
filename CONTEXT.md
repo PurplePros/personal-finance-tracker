@@ -60,15 +60,17 @@ Transactions for every Institution.
 
 ### Transaction
 A single posted or pending money movement on an Account, pulled from Plaid (a
-purchase, refund, fee, cash withdrawal, or payment). Belongs to one Account and
-carries a merchant name, amount, date, and pending flag. Only Credit Card
-accounts surface Transactions in v1.
+purchase, refund, fee, cash withdrawal, e-Transfer, or payment). Belongs to one
+Account and carries a merchant name, amount, date, and pending flag. Credit Card
+and Chequing accounts surface Transactions; Savings and Investment accounts do not.
 
 ### Spending
 The net outflow over a period shown by the Spending view: purchases minus
 refunds (a return reduces spending, so a period or Category can go negative).
-Transfers and card payments are excluded (see Finances); bank fees and cash
-withdrawals are included. Pending Transactions count.
+Own-account Transfers, card payments, and Income are excluded (see Finances);
+bank fees, cash withdrawals, and e-Transfers are included. Pending Transactions
+count. E-Transfers land in `Finances > Other` by default; re-categorize via
+PATCH to assign them to the correct Category.
 
 ### Category / Subcategory
 The classification a Transaction is filed under. A **major Category** (e.g. Food
@@ -94,7 +96,21 @@ cash withdrawals, and Transfers. Fees and cash withdrawals count as Spending;
 Transfers do not.
 
 ### Transfer
-A Transaction that moves money rather than spending it (a credit-card payment,
-or moving money between one's own accounts). Listed under Finances but never
-counted in Spending. Ambiguous person-to-person transfers (e.g. Interac
-e-Transfers) are out of scope until chequing/savings Accounts are added.
+A Transaction that moves money between one's own accounts or pays a credit card.
+Identified by Plaid's `ACCOUNT_TRANSFER` detailed signal or `LOAN_PAYMENTS`
+primary. Listed under `Finances > Transfers` but never counted in Spending.
+
+### E-Transfer
+An Interac person-to-person transfer to or from someone else (a friend paying
+you back, or you splitting a bill). Plaid uses the same `TRANSFER_IN` /
+`TRANSFER_OUT` primary signals for both e-Transfers and credit card credits, so
+they cannot be automatically distinguished without a specific detailed signal.
+E-Transfers default to `Finances > Other` (spending) and should be re-categorized
+via PATCH to reflect what they actually represent - for example, a reimbursement
+from a friend for a shared meal should move to the relevant spending category
+rather than staying in Other.
+
+### Income
+A payroll deposit or other direct-deposit inflow from an external source.
+Identified by Plaid's `INCOME` primary. Listed under `Finances > Income` but
+never counted in Spending - income is not a spending event.

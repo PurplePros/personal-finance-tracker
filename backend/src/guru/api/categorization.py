@@ -34,13 +34,17 @@ TAXONOMY: dict[str, list[str]] = {
     "Housing": ["Mortgage", "Home insurance", "Property taxes", OTHER],
     "Travel": ["Flights", "Hotels", OTHER],
     "Fun money": ["Activities", OTHER],
-    "Finances": ["Bank fees and interest", "Cash withdrawals", "Transfers", OTHER],
+    "Finances": ["Bank fees and interest", "Cash withdrawals", "Transfers", "Income", OTHER],
     "Miscellaneous": [],
 }
 
-# The Finances Subcategory that moves money rather than spending it. It is the
-# only Category that is never counted as spending.
-_TRANSFERS = ("Finances", "Transfers")
+# Finances subcategories that are never counted as spending.
+_TRANSFERS = ("Finances", "Transfers")  # own-account moves and card payments
+_INCOME = ("Finances", "Income")  # payroll and direct deposits
+
+# Categories excluded from spending. Module-level (rather than on ResolvedCategory)
+# because Python 3.14 NamedTuple rejects ClassVar annotations.
+_NON_SPENDING: frozenset[tuple[str, str]] = frozenset({_TRANSFERS, _INCOME})
 
 # Plaid confidence at or above MEDIUM is trusted; below it the assignment is
 # still applied but flagged low-confidence for review.
@@ -49,10 +53,12 @@ _CONFIDENT = frozenset(
 )
 
 # Landing Category for a Plaid PFC primary when the detailed signal is absent or
-# unmapped. Per spec, a primary-only signal lands in its major's Other. The
-# transfer family is the deliberate exception: it lands in Transfers rather than
-# Other so that a card payment or account transfer identified only at the primary
-# level is still non-spending (is_spending keys off the Transfers Category).
+# unmapped. Per spec, a primary-only signal lands in its major's Other.
+# LOAN_PAYMENTS is the deliberate exception: card payments identified only at
+# the primary level still land in Transfers (non-spending).
+# TRANSFER_IN/OUT without a detailed signal lands in Finances > Other so the
+# holder can re-categorize: Plaid uses the same primaries for e-Transfers and
+# CC credits and we cannot tell them apart without a specific detailed signal.
 _PRIMARY_TO_CATEGORY: dict[str, tuple[str, str | None]] = {
     "FOOD_AND_DRINK": ("Food and personal items", OTHER),
     "GENERAL_MERCHANDISE": ("Shopping", OTHER),
@@ -64,10 +70,10 @@ _PRIMARY_TO_CATEGORY: dict[str, tuple[str, str | None]] = {
     "PERSONAL_CARE": ("Health and wellness", OTHER),
     "ENTERTAINMENT": ("Fun money", OTHER),
     "BANK_FEES": ("Finances", OTHER),
-    "TRANSFER_IN": _TRANSFERS,
-    "TRANSFER_OUT": _TRANSFERS,
+    "TRANSFER_IN": ("Finances", OTHER),
+    "TRANSFER_OUT": ("Finances", OTHER),
     "LOAN_PAYMENTS": _TRANSFERS,
-    "INCOME": ("Finances", OTHER),
+    "INCOME": _INCOME,
     "GENERAL_SERVICES": ("Miscellaneous", None),
     "GOVERNMENT_AND_NON_PROFIT": ("Miscellaneous", None),
 }
@@ -155,6 +161,7 @@ class ResolvedCategory(NamedTuple):
     subcategory: str | None
     source: CategorySource
 
+
     @classmethod
     def resolve(
         cls,
@@ -186,8 +193,9 @@ class ResolvedCategory(NamedTuple):
     def is_spending(self) -> bool:
         """Whether this Category counts toward Spending.
 
-        Only Transfers (card payments and money moved between accounts) are
-        excluded. Everything else counts, including bank fees and cash
-        withdrawals.
+        Transfers (own-account moves and card payments) and Income (payroll,
+        direct deposits) are excluded. Everything else counts, including bank
+        fees, cash withdrawals, and e-Transfers (Finances > Other by default;
+        re-categorize via PATCH to place them correctly).
         """
-        return (self.major, self.subcategory) != _TRANSFERS
+        return (self.major, self.subcategory) not in _NON_SPENDING

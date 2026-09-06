@@ -1,15 +1,18 @@
 import datetime
 import json
+import logging
 import uuid
 from decimal import Decimal
 
 import plaid
 from sqlmodel import Session, select
 
-from guru.api.models import AccountType, PlaidConfidence
+from guru.api.models import AccountType, PlaidConfidence, SPENDING_ACCOUNT_TYPES
 from guru.api.plaid import PlaidService
 from guru.db.models import Account, Institution, Transaction
 from guru.db.repository import InstitutionRepository
+
+logger = logging.getLogger(__name__)
 
 PLAID_TYPE_MAP: dict[tuple[str, str], AccountType] = {
     ("depository", "checking"): AccountType.CHEQUING,
@@ -107,19 +110,26 @@ def _sync_transactions(
         institution.plaid_access_token, institution.transactions_cursor
     )
 
-    # Map Plaid account ids to our Credit Card account ids for this institution.
-    credit_accounts = session.exec(
+    # Map Plaid account ids to our Credit Card and Chequing account ids for this
+    # institution. Savings and Investment accounts are excluded from transaction sync.
+    spending_accounts = session.exec(
         select(Account).where(
             Account.institution_id == institution.id,
-            Account.type == AccountType.CREDIT,
+            Account.type.in_(list(SPENDING_ACCOUNT_TYPES)),
         )
     ).all()
-    account_by_plaid_id = {a.plaid_id: a.id for a in credit_accounts}
+    account_by_plaid_id = {a.plaid_id: a.id for a in spending_accounts}
 
     applied = 0
     for pt in [*result.added, *result.modified]:
         account_id = account_by_plaid_id.get(pt["account_id"])
         if account_id is None:
+            logger.debug(
+                "Skipping transaction %s: Plaid account %s not a spending account for institution %s",
+                pt["transaction_id"],
+                pt["account_id"],
+                institution.id,
+            )
             continue
         fields = _plaid_transaction_fields(pt, account_id)
         existing = session.exec(
