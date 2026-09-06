@@ -28,9 +28,7 @@ def _seed_credit_card(fake_plaid, seed_institution, token="tok-1", account_id="c
     )
 
 
-def test_sync_persists_credit_card_transaction(
-    client, fake_plaid, seed_institution
-):
+def test_sync_persists_credit_card_transaction(client, fake_plaid, seed_institution):
     """Sync persists a Credit Card transaction with amount, date, merchant, pending."""
     _seed_credit_card(fake_plaid, seed_institution)
     fake_plaid.set_transactions(
@@ -115,9 +113,7 @@ def test_low_confidence_category_maps_with_low_confidence_source(
     assert txn["category_source"] == "plaid_low_confidence"
 
 
-def test_primary_only_signal_lands_in_major_other(
-    client, fake_plaid, seed_institution
-):
+def test_primary_only_signal_lands_in_major_other(client, fake_plaid, seed_institution):
     """When Plaid identifies only the major, the transaction lands in its Other."""
     _seed_credit_card(fake_plaid, seed_institution)
     fake_plaid.set_transactions(
@@ -221,10 +217,15 @@ def test_bank_fee_and_cash_withdrawal_count_as_spending(
     client.post("/api/sync")
 
     by_id = {t["id"]: t for t in client.get("/api/transactions").json()}
-    fee = next(t for t in by_id.values() if t["merchant_name"] is None
-               and t["category"]["subcategory"] == "Bank fees and interest")
-    atm = next(t for t in by_id.values()
-               if t["category"]["subcategory"] == "Cash withdrawals")
+    fee = next(
+        t
+        for t in by_id.values()
+        if t["merchant_name"] is None
+        and t["category"]["subcategory"] == "Bank fees and interest"
+    )
+    atm = next(
+        t for t in by_id.values() if t["category"]["subcategory"] == "Cash withdrawals"
+    )
     assert fee["category"]["major"] == "Finances"
     assert fee["is_spending"] is True
     assert atm["category"]["major"] == "Finances"
@@ -355,9 +356,7 @@ def test_date_range_filters_transactions(client, fake_plaid, seed_institution):
     assert in_range[0]["date"] == "2026-06-15"
 
 
-def test_modified_transaction_is_updated_in_place(
-    client, fake_plaid, seed_institution
-):
+def test_modified_transaction_is_updated_in_place(client, fake_plaid, seed_institution):
     """A later Sync's modified batch updates the row, not duplicates it."""
     _seed_credit_card(fake_plaid, seed_institution)
     fake_plaid.set_transactions(
@@ -526,9 +525,7 @@ def test_patch_override_reflected_in_response_with_source_user(
     assert result["category_source"] == "user"
 
 
-def test_patch_override_survives_subsequent_sync(
-    client, fake_plaid, seed_institution
-):
+def test_patch_override_survives_subsequent_sync(client, fake_plaid, seed_institution):
     """An override set via PATCH is not replaced by a later Sync."""
     _seed_credit_card(fake_plaid, seed_institution)
     fake_plaid.set_transactions(

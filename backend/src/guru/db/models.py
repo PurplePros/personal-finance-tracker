@@ -69,9 +69,7 @@ class Account(BaseSQLModel, table=True):
         description="Foreign key to the parent Institution",
     )
     plaid_id: str = Field(description="Plaid account ID")
-    type: AccountType = Field(
-        description="Coarse account type (see AccountType)"
-    )
+    type: AccountType = Field(description="Coarse account type (see AccountType)")
     balance: Decimal = Field(
         max_digits=20,
         decimal_places=2,
