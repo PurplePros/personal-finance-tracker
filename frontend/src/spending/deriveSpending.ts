@@ -8,6 +8,7 @@ export interface SpendingTransactionRow {
   id: string
   accountId: string
   date: string
+  name: string
   merchantName: string | null
   amount: number
   pending: boolean
@@ -63,6 +64,7 @@ function toRow(txn: Transaction): SpendingTransactionRow {
     id: txn.id,
     accountId: txn.account_id,
     date: txn.date,
+    name: txn.name,
     merchantName: txn.merchant_name,
     amount: txn.amount,
     pending: txn.pending,
@@ -90,18 +92,24 @@ function buildCumulativeSeries(txns: Transaction[], selectedMonth: string): Dail
     spendingByDate.set(txn.date, (spendingByDate.get(txn.date) ?? 0) + txn.amount)
   }
 
-  // Always start from the 1st of the selected month; end at the last transaction date
-  const firstDate = `${selectedMonth}-01`
-  const allDates = txns.map((t) => t.date).sort()
-  const lastDate = allDates[allDates.length - 1]!
+  // x-axis ends at the last *spending* date, not the last transaction date, so
+  // a trailing non-spending transfer doesn't extend the chart with a flat line.
+  const spendingDates = [...spendingByDate.keys()].sort()
+  if (spendingDates.length === 0) return []
+  const lastDate = spendingDates[spendingDates.length - 1]!
 
   const series: DailyPoint[] = []
   let cumulative = 0
-  const cursor = new Date(firstDate + 'T00:00:00')
-  const end = new Date(lastDate + 'T00:00:00')
+  const cursor = new Date(`${selectedMonth}-01T00:00:00`)
+  const end = new Date(`${lastDate}T00:00:00`)
+
+  // Use local date components to avoid UTC-offset shifting the date string.
+  function localDateStr(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
 
   while (cursor <= end) {
-    const dateStr = cursor.toISOString().slice(0, 10)
+    const dateStr = localDateStr(cursor)
     cumulative += spendingByDate.get(dateStr) ?? 0
     series.push({ date: dateStr, amount: cumulative })
     cursor.setDate(cursor.getDate() + 1)
@@ -166,6 +174,9 @@ function buildAvgDailySeries(
   const maxDay = Math.max(0, ...monthlyDayTotals.map((m) => Math.max(0, ...m.keys())))
   if (maxDay === 0) return []
 
+  const monthsWithData = monthlyDayTotals.filter((m) => m.size > 0).length
+  if (monthsWithData === 0) return []
+
   const result: AvgDailyPoint[] = []
   for (let d = 1; d <= maxDay; d++) {
     let sum = 0
@@ -176,7 +187,7 @@ function buildAvgDailySeries(
       const value = cumByDay.get(Math.min(d, monthMax)) ?? 0
       sum += value
     }
-    result.push({ dayOfMonth: d, amount: Math.round(sum / priorMonths.length) })
+    result.push({ dayOfMonth: d, amount: Math.round(sum / monthsWithData) })
   }
   return result
 }

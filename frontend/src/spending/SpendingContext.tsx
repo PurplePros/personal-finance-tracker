@@ -46,6 +46,7 @@ export function SpendingProvider({ children }: { children: React.ReactNode }) {
   const patchCategory = useCallback(
     async (txnId: string, category: { major: string; subcategory: string } | null) => {
       const updated = await patchTransactionCategory(txnId, category)
+      // Only update state on success; a thrown error leaves the previous state intact.
       setTransactions((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
     },
     [],
