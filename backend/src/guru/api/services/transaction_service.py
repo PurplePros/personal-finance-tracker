@@ -4,7 +4,7 @@ import uuid
 from sqlmodel import Session, col, select
 
 from guru.api.categorization import ResolvedCategory, validate_user_category
-from guru.api.models import AccountType, SPENDING_ACCOUNT_TYPES, UserCategory
+from guru.api.models import SPENDING_ACCOUNT_TYPES, UserCategory
 from guru.db.models import Account, Transaction
 
 # First Sync backfills roughly 13 months; the read endpoint defaults to the

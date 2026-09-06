@@ -7,7 +7,7 @@ from decimal import Decimal
 import plaid
 from sqlmodel import Session, select
 
-from guru.api.models import AccountType, PlaidConfidence, SPENDING_ACCOUNT_TYPES
+from guru.api.models import SPENDING_ACCOUNT_TYPES, AccountType, PlaidConfidence
 from guru.api.plaid import PlaidService
 from guru.db.models import Account, Institution, Transaction
 from guru.db.repository import InstitutionRepository
@@ -125,7 +125,7 @@ def _sync_transactions(
         account_id = account_by_plaid_id.get(pt["account_id"])
         if account_id is None:
             logger.debug(
-                "Skipping transaction %s: Plaid account %s not a spending account for institution %s",
+                "Skipping transaction %s: account %s not in spending accounts (%s)",
                 pt["transaction_id"],
                 pt["account_id"],
                 institution.id,
@@ -231,7 +231,7 @@ def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
         # performs a full backfill across all spending accounts.
         if new_spending_account and institution.transactions_cursor is not None:
             logger.info(
-                "New spending account detected for institution %s; resetting transaction cursor for full backfill.",
+                "New spending account for institution %s; resetting cursor.",
                 institution.id,
             )
             institution.transactions_cursor = None

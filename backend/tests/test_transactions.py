@@ -260,7 +260,7 @@ def test_refund_carries_negative_amount(client, fake_plaid, seed_institution):
 def test_chequing_transactions_are_returned_alongside_credit_card(
     client, fake_plaid, seed_institution
 ):
-    """Chequing transactions are synced and returned in the same list as credit cards."""
+    """Chequing transactions are synced and returned alongside credit cards."""
     seed_institution(access_token="tok-1")
     fake_plaid.set_accounts(
         "tok-1",
@@ -341,7 +341,7 @@ def test_savings_account_transactions_are_excluded(
 def test_e_transfer_without_detail_defaults_to_spending(
     client, fake_plaid, seed_institution
 ):
-    """A TRANSFER_IN/OUT with no detailed signal defaults to spending (Finances > Other).
+    """TRANSFER_IN/OUT with no detailed signal defaults to spending (Finances > Other).
 
     Plaid uses the same primary signals for both credit card credits and chequing
     e-Transfers. Without a distinct detailed signal we cannot tell them apart, so
@@ -431,7 +431,7 @@ def test_own_account_transfer_is_not_spending(client, fake_plaid, seed_instituti
 def test_income_is_not_spending_and_maps_to_finances_income(
     client, fake_plaid, seed_institution
 ):
-    """A payroll direct deposit (INCOME primary) lands in Finances/Income and is not spending."""
+    """A payroll deposit (INCOME primary) lands in Finances/Income, not spending."""
     seed_institution(access_token="tok-1")
     fake_plaid.set_accounts(
         "tok-1",
@@ -467,8 +467,10 @@ def test_income_is_not_spending_and_maps_to_finances_income(
     assert txn["is_spending"] is False
 
 
-def test_credit_card_payment_is_not_double_counted(client, fake_plaid, seed_institution):
-    """A credit card payment appears on both sides but only the purchase counts as spending.
+def test_credit_card_payment_is_not_double_counted(
+    client, fake_plaid, seed_institution
+):
+    """A card payment appears on both sides but only the purchase counts as spending.
 
     The chequing debit for a card payment is tagged LOAN_PAYMENTS_CREDIT_CARD_PAYMENT
     (non-spending Transfers). The credit card purchase was already counted as spending.
