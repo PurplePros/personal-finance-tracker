@@ -154,7 +154,9 @@ class PlaidService:
         if access_token is not None:
             kwargs["access_token"] = access_token
             # Allow the user to add new accounts to the existing item, not just re-auth.
-            kwargs["update"] = LinkTokenCreateRequestUpdate(account_selection_enabled=True)
+            kwargs["update"] = LinkTokenCreateRequestUpdate(
+                account_selection_enabled=True
+            )
         else:
             kwargs["products"] = [Products("transactions")]
         request = LinkTokenCreateRequest(**kwargs)

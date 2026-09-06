@@ -34,7 +34,13 @@ TAXONOMY: dict[str, list[str]] = {
     "Housing": ["Mortgage", "Home insurance", "Property taxes", OTHER],
     "Travel": ["Flights", "Hotels", OTHER],
     "Fun money": ["Activities", OTHER],
-    "Finances": ["Bank fees and interest", "Cash withdrawals", "Transfers", "Income", OTHER],
+    "Finances": [
+        "Bank fees and interest",
+        "Cash withdrawals",
+        "Transfers",
+        "Income",
+        OTHER,
+    ],
     "Miscellaneous": [],
 }
 
@@ -160,7 +166,6 @@ class ResolvedCategory(NamedTuple):
     major: str
     subcategory: str | None
     source: CategorySource
-
 
     @classmethod
     def resolve(
