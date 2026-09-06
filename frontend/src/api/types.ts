@@ -42,11 +42,25 @@ export interface Transaction {
   /** ISO date string: YYYY-MM-DD */
   date: string
   merchant_name: string | null
+  name: string
   amount: number
   pending: boolean
   category: Category
   category_source: CategorySource
   is_spending: boolean
+  note: string | null
+}
+
+/** One entry from `GET /api/budget/plan`. month is null for the global template. */
+export interface BudgetPlanEntry {
+  major: string
+  month: string | null
+  planned_cents: number
+}
+
+/** Application-level settings. */
+export interface AppSettings {
+  catherine_ratio: number
 }
 
 export interface Account {

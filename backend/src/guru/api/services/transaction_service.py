@@ -52,6 +52,49 @@ class InvalidCategoryError(ValueError):
     """Raised when a category (major, subcategory) pair is not in the taxonomy."""
 
 
+_UNSET = object()
+
+
+def patch_transaction(
+    session: Session,
+    txn_id: uuid.UUID,
+    category: UserCategory | None | object = _UNSET,
+    note: str | None | object = _UNSET,
+) -> dict | None:
+    """Set or clear category/note overrides on a Transaction.
+
+    Either field may be omitted (pass _UNSET or simply don't pass it) to leave
+    the existing value unchanged. Returns the serialized Transaction on success,
+    or None if not found. Raises InvalidCategoryError for invalid categories.
+    """
+    if category is not _UNSET and category is not None:
+        cat = category  # type: ignore[assignment]
+        if not validate_user_category(cat.major, cat.subcategory):
+            raise InvalidCategoryError(
+                f"Category ({cat.major!r}, {cat.subcategory!r}) not in taxonomy"
+            )
+
+    txn = session.get(Transaction, txn_id)
+    if txn is None:
+        return None
+
+    if category is not _UNSET:
+        if category is not None:
+            cat = category  # type: ignore[assignment]
+            txn.user_category_major = cat.major
+            txn.user_category_subcategory = cat.subcategory
+        else:
+            txn.user_category_major = None
+            txn.user_category_subcategory = None
+
+    if note is not _UNSET:
+        txn.note = note if note else None  # type: ignore[assignment]
+
+    session.commit()
+    session.refresh(txn)
+    return _serialize(txn)
+
+
 def patch_transaction_category(
     session: Session,
     txn_id: uuid.UUID,
@@ -62,27 +105,7 @@ def patch_transaction_category(
     Returns the serialized Transaction on success, or None if not found.
     Raises InvalidCategoryError if category is not in the taxonomy.
     """
-    if category is not None and not validate_user_category(
-        category.major, category.subcategory
-    ):
-        raise InvalidCategoryError(
-            f"Category ({category.major!r}, {category.subcategory!r}) not in taxonomy"
-        )
-
-    txn = session.get(Transaction, txn_id)
-    if txn is None:
-        return None
-
-    if category is not None:
-        txn.user_category_major = category.major
-        txn.user_category_subcategory = category.subcategory
-    else:
-        txn.user_category_major = None
-        txn.user_category_subcategory = None
-
-    session.commit()
-    session.refresh(txn)
-    return _serialize(txn)
+    return patch_transaction(session, txn_id, category=category)
 
 
 def _serialize(txn: Transaction) -> dict:
@@ -107,4 +130,5 @@ def _serialize(txn: Transaction) -> dict:
         },
         "category_source": category.source,
         "is_spending": category.is_spending,
+        "note": txn.note,
     }

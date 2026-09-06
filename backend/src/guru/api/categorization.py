@@ -31,7 +31,7 @@ TAXONOMY: dict[str, list[str]] = {
     ],
     "Bills": ["Subscriptions", "Internet and phone", "Utilities", OTHER],
     "Health and wellness": ["Fitness and sports", "Medical", OTHER],
-    "Housing": ["Mortgage", "Home insurance", "Property taxes", OTHER],
+    "Housing": ["Mortgage", "Home insurance", "Property taxes", "Condo and maintenance fees", OTHER],
     "Travel": ["Flights", "Hotels", OTHER],
     "Fun money": ["Activities", OTHER],
     "Finances": [
