@@ -99,30 +99,108 @@ function MonthPicker({ value, months, onChange }: {
   )
 }
 
-// --- Treemap (proportional horizontal segments) ---
+// --- Treemap (squarified 2D layout) ---
+
+interface SquarifyItem {
+  value: number
+  cat: MajorCategoryBreakdown
+}
+
+interface SquarifyRect {
+  x: number
+  y: number
+  w: number
+  h: number
+  cat: MajorCategoryBreakdown
+}
+
+function worstRatio(row: SquarifyItem[], rowSum: number, total: number, long: number, short: number): number {
+  const stripLen = (rowSum / total) * long
+  let worst = 0
+  for (const it of row) {
+    const itemLen = (it.value / rowSum) * short
+    if (itemLen === 0) continue
+    worst = Math.max(worst, Math.max(stripLen / itemLen, itemLen / stripLen))
+  }
+  return worst
+}
+
+function squarify(items: SquarifyItem[], x: number, y: number, w: number, h: number, total: number): SquarifyRect[] {
+  if (items.length === 0 || total === 0 || w <= 0 || h <= 0) return []
+  if (items.length === 1) return [{ x, y, w, h, cat: items[0].cat }]
+
+  const isWide = w >= h
+  const long = isWide ? w : h
+  const short = isWide ? h : w
+
+  let row: SquarifyItem[] = [items[0]]
+  let rowSum = items[0].value
+
+  for (let i = 1; i < items.length; i++) {
+    const candidate = items[i]
+    const newRowSum = rowSum + candidate.value
+    if (worstRatio([...row, candidate], newRowSum, total, long, short) <= worstRatio(row, rowSum, total, long, short)) {
+      row.push(candidate)
+      rowSum = newRowSum
+    } else {
+      break
+    }
+  }
+
+  const stripLen = (rowSum / total) * long
+  const rects: SquarifyRect[] = []
+  let pos = isWide ? y : x
+
+  for (const it of row) {
+    const itemLen = (it.value / rowSum) * short
+    rects.push(isWide
+      ? { x, y: pos, w: stripLen, h: itemLen, cat: it.cat }
+      : { x: pos, y, w: itemLen, h: stripLen, cat: it.cat })
+    pos += itemLen
+  }
+
+  const remaining = items.slice(row.length)
+  const rest = isWide
+    ? squarify(remaining, x + stripLen, y, w - stripLen, h, total - rowSum)
+    : squarify(remaining, x, y + stripLen, w, h - stripLen, total - rowSum)
+
+  return [...rects, ...rest]
+}
+
+// Canvas dimensions — aspect ratio ~3.2:1
+const TM_W = 800
+const TM_H = 250
+const TM_GAP = 3
 
 function SpendingTreemap({ breakdown }: { breakdown: MajorCategoryBreakdown[] }) {
   const spending = breakdown.filter((b) => b.amount > 0).sort((a, b) => b.amount - a.amount)
   const total = spending.reduce((s, b) => s + b.amount, 0)
   if (total === 0) return null
 
+  const items = spending.map((cat) => ({ value: cat.amount, cat }))
+  const rects = squarify(items, 0, 0, TM_W, TM_H, total)
+
   return (
     <div className="spending-treemap" role="img" aria-label="Spending by category">
-      {spending.map((cat) => {
+      {rects.map(({ x, y, w, h, cat }) => {
         const pct = (cat.amount / total) * 100
         return (
           <div
             key={cat.major}
             className="treemap-segment"
-            style={{ width: `${pct}%`, background: categoryColor(cat.major) }}
+            style={{
+              left: `${((x + TM_GAP / 2) / TM_W) * 100}%`,
+              top: `${((y + TM_GAP / 2) / TM_H) * 100}%`,
+              width: `${((w - TM_GAP) / TM_W) * 100}%`,
+              height: `${((h - TM_GAP) / TM_H) * 100}%`,
+              background: categoryColor(cat.major),
+            }}
             title={`${cat.major}: ${formatAmount(cat.amount)} (${pct.toFixed(1)}%)`}
           >
-            {pct > 7 && (
-              <div className="treemap-label">
-                <span>{categoryIcon(cat.major)}</span>
-                {pct > 14 && <span className="treemap-name">{cat.major.split(' ')[0]}</span>}
-              </div>
-            )}
+            <div className="treemap-label">
+              <span className="treemap-name">{cat.major}</span>
+              <span className="treemap-pct">{pct.toFixed(0)}%</span>
+            </div>
           </div>
         )
       })}
@@ -166,7 +244,7 @@ function CategoryRankedList({ breakdown }: { breakdown: MajorCategoryBreakdown[]
                 {categoryIcon(cat.major)}
               </span>
               <span className="crr-name">{cat.major}</span>
-              <span className="crr-count">{cat.count} txn{cat.count !== 1 ? 's' : ''}</span>
+              <span className="crr-count">{cat.count} item{cat.count !== 1 ? 's' : ''}</span>
               <span className="crr-share">{cat.share.toFixed(1)}%</span>
               <span className="crr-amount">{formatAmount(cat.amount)}</span>
               <span className="crr-chevron" aria-hidden>{isOpen ? '▲' : '▼'}</span>
@@ -305,6 +383,7 @@ function CategoryPicker({
   onPatch: (txnId: string, category: { major: string; subcategory: string } | null) => Promise<void>
 }) {
   const [isPending, setIsPending] = useState(false)
+  const [patchError, setPatchError] = useState<string | null>(null)
 
   // Miscellaneous has no subcategories and can't be set as user category
   const pickable = categories.filter((c) => c.subcategories.length > 0)
@@ -317,6 +396,7 @@ function CategoryPicker({
     const val = e.target.value
     if (val === currentValue) return
     setIsPending(true)
+    setPatchError(null)
     try {
       if (val === '__clear__') {
         await onPatch(row.id, null)
@@ -326,19 +406,23 @@ function CategoryPicker({
         const subcategory = val.slice(sepIdx + 1)
         await onPatch(row.id, { major, subcategory })
       }
+    } catch {
+      setPatchError('Save failed')
     } finally {
       setIsPending(false)
     }
   }
 
   return (
-    <select
-      className="category-picker"
-      value={currentValue}
-      disabled={isPending}
-      onChange={(e) => void handleChange(e)}
-      aria-label="Change category"
-    >
+    <div className="category-picker-wrap">
+      {patchError && <span className="category-picker-error">{patchError}</span>}
+      <select
+        className="category-picker"
+        value={currentValue}
+        disabled={isPending}
+        onChange={(e) => void handleChange(e)}
+        aria-label="Change category"
+      >
       {pickable.map((cat) => (
         <optgroup key={cat.major} label={cat.major}>
           {cat.subcategories.map((sub) => (
@@ -349,7 +433,8 @@ function CategoryPicker({
         </optgroup>
       ))}
       <option value="__clear__">Reset to auto</option>
-    </select>
+      </select>
+    </div>
   )
 }
 
@@ -358,10 +443,12 @@ function CategoryPicker({
 function TransactionRow({
   row,
   categories,
+  isEditing,
   onPatch,
 }: {
   row: SpendingTransactionRow
   categories: CategoryTaxonomy[]
+  isEditing: boolean
   onPatch: (txnId: string, category: { major: string; subcategory: string } | null) => Promise<void>
 }) {
   return (
@@ -370,7 +457,10 @@ function TransactionRow({
         {categoryIcon(row.category.major)}
       </span>
       <div className="txn-main">
-        <div className="txn-merchant">{row.merchantName ?? 'Unknown'}</div>
+        <div className="txn-merchant">{row.name ?? row.merchantName ?? 'Unknown'}</div>
+        {row.category.subcategory && (
+          <div className="txn-subcategory">{row.category.subcategory}</div>
+        )}
         <div className="txn-meta">
           {row.pending && <span className="badge badge-pending">Pending</span>}
           {row.isLowConfidence && <span className="badge badge-low-confidence">Low confidence</span>}
@@ -383,7 +473,7 @@ function TransactionRow({
             ? `−${formatAmount(-row.amount)}`
             : formatAmount(row.amount)}
         </span>
-        <CategoryPicker row={row} categories={categories} onPatch={onPatch} />
+        {isEditing && <CategoryPicker row={row} categories={categories} onPatch={onPatch} />}
       </div>
     </li>
   )
@@ -395,11 +485,13 @@ function DayGroup({
   date,
   transactions,
   categories,
+  isEditing,
   onPatch,
 }: {
   date: string
   transactions: SpendingTransactionRow[]
   categories: CategoryTaxonomy[]
+  isEditing: boolean
   onPatch: (txnId: string, category: { major: string; subcategory: string } | null) => Promise<void>
 }) {
   return (
@@ -407,10 +499,21 @@ function DayGroup({
       <h3 className="day-group-header">{formatDateLabel(date)}</h3>
       <ul className="txn-list">
         {transactions.map((row) => (
-          <TransactionRow key={row.id} row={row} categories={categories} onPatch={onPatch} />
+          <TransactionRow key={row.id} row={row} categories={categories} isEditing={isEditing} onPatch={onPatch} />
         ))}
       </ul>
     </section>
+  )
+}
+
+// --- Pencil icon SVG ---
+
+function PencilIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M22.987,5.452c-.028-.177-.312-1.767-1.464-2.928-1.157-1.132-2.753-1.412-2.931-1.44-.237-.039-.479,.011-.682,.137-.071,.044-1.114,.697-3.173,2.438,1.059,.374,2.428,1.023,3.538,2.109,1.114,1.09,1.78,2.431,2.162,3.471,1.72-2.01,2.367-3.028,2.41-3.098,.128-.205,.178-.45,.14-.689Z" />
+      <path d="M12.95,5.223c-1.073,.968-2.322,2.144-3.752,3.564C3.135,14.807,1.545,17.214,1.48,17.313c-.091,.14-.146,.301-.159,.467l-.319,4.071c-.022,.292,.083,.578,.29,.785,.188,.188,.443,.293,.708,.293,.025,0,.051,0,.077-.003l4.101-.316c.165-.013,.324-.066,.463-.155,.1-.064,2.523-1.643,8.585-7.662,1.462-1.452,2.668-2.716,3.655-3.797-.151-.649-.678-2.501-2.005-3.798-1.346-1.317-3.283-1.833-3.927-1.975Z" />
+    </svg>
   )
 }
 
@@ -421,14 +524,26 @@ export default function SpendingView() {
   const { patchCategory } = useSpending()
 
   const months = lastTwelveMonths()
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth)
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    try {
+      const stored = localStorage.getItem('spending-selected-month')
+      if (stored && months.includes(stored)) return stored
+    } catch {}
+    return currentMonth()
+  })
+
+  function handleMonthChange(m: string) {
+    setSelectedMonth(m)
+    try { localStorage.setItem('spending-selected-month', m) } catch {}
+  }
+  const [isEditing, setIsEditing] = useState(false)
 
   const model = deriveSpending(transactions, selectedMonth)
 
   return (
     <div className="spending-view">
       <div className="spending-header">
-        <MonthPicker value={selectedMonth} months={months} onChange={setSelectedMonth} />
+        <MonthPicker value={selectedMonth} months={months} onChange={handleMonthChange} />
         {model.netTotal !== 0 && (
           <p className="spending-net-total">
             <span className="net-total-label">Total</span>
@@ -444,33 +559,51 @@ export default function SpendingView() {
         <p className="empty-state">No transactions yet. Try syncing your accounts.</p>
       )}
 
-      {model.categoryBreakdown.length > 0 && (
-        <>
-          <SpendingTreemap breakdown={model.categoryBreakdown} />
-          <CategoryRankedList breakdown={model.categoryBreakdown} />
-        </>
-      )}
-
-      {(model.cumulativeDailySeries.length > 0 || model.threeMonthAvgDailySeries.length > 0) && (
-        <section className="pace-section" aria-label="Spending pace">
-          <h2 className="section-heading">Pace</h2>
-          <PaceChart
-            cumulativeSeries={model.cumulativeDailySeries}
-            avgSeries={model.threeMonthAvgDailySeries}
-            selectedMonth={selectedMonth}
-          />
+      {(model.categoryBreakdown.length > 0 || model.cumulativeDailySeries.length > 0 || model.threeMonthAvgDailySeries.length > 0) && (
+        <section className="breakdown-section" aria-label="Spending breakdown">
+          <h2 className="section-heading">Breakdown</h2>
+          {model.categoryBreakdown.length > 0 && (
+            <>
+              <SpendingTreemap breakdown={model.categoryBreakdown} />
+              <CategoryRankedList breakdown={model.categoryBreakdown} />
+            </>
+          )}
+          {(model.cumulativeDailySeries.length > 0 || model.threeMonthAvgDailySeries.length > 0) && (
+            <PaceChart
+              cumulativeSeries={model.cumulativeDailySeries}
+              avgSeries={model.threeMonthAvgDailySeries}
+              selectedMonth={selectedMonth}
+            />
+          )}
         </section>
       )}
 
       {model.dayGroupedList.length > 0 && (
         <section className="txn-section" aria-label="Transactions">
-          <h2 className="section-heading">Transactions</h2>
+          <div className="txn-section-header">
+            <h2 className="section-heading">Transactions</h2>
+            {isEditing ? (
+              <button className="txn-edit-btn txn-save-btn" type="button" onClick={() => setIsEditing(false)}>
+                Save
+              </button>
+            ) : (
+              <button
+                className="txn-edit-btn txn-pencil-btn"
+                type="button"
+                aria-label="Edit categories"
+                onClick={() => setIsEditing(true)}
+              >
+                <PencilIcon />
+              </button>
+            )}
+          </div>
           {model.dayGroupedList.map((group) => (
             <DayGroup
               key={group.date}
               date={group.date}
               transactions={group.transactions}
               categories={categories}
+              isEditing={isEditing}
               onPatch={patchCategory}
             />
           ))}

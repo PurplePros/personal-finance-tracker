@@ -80,11 +80,12 @@ button:disabled { opacity: 0.65; cursor: wait; }
 .spending-error { color: #b84631; }
 
 /* Treemap */
-.spending-treemap { display: flex; height: 56px; border-radius: 0.75rem; overflow: hidden; gap: 2px; }
-.treemap-segment { display: flex; align-items: center; justify-content: center; min-width: 0; transition: opacity 0.15s; border-radius: 0; }
+.spending-treemap { position: relative; width: 100%; aspect-ratio: 800 / 250; border-radius: 0.75rem; overflow: hidden; }
+.treemap-segment { position: absolute; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 4px; transition: opacity 0.15s; }
 .treemap-segment:hover { opacity: 0.85; }
-.treemap-label { display: flex; align-items: center; gap: 3px; color: white; font-size: 0.75rem; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.3); overflow: hidden; white-space: nowrap; padding: 0 4px; }
-.treemap-name { overflow: hidden; text-overflow: ellipsis; }
+.treemap-label { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: white; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.4); overflow: hidden; padding: 6px 8px; width: 100%; }
+.treemap-name { font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; text-align: center; }
+.treemap-pct { font-size: 0.72rem; opacity: 0.85; }
 
 /* Category ranked list */
 .category-ranked-list { list-style: none; padding: 0; margin: 0; border: 1px solid #d7d9cc; border-radius: 1rem; background: #fffefa; overflow: hidden; }
@@ -108,8 +109,16 @@ button:disabled { opacity: 0.65; cursor: wait; }
 .sub-amount { font-weight: 500; width: 6rem; text-align: right; flex-shrink: 0; }
 
 /* Section headings */
-.section-heading { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #5a6a61; margin: 0 0 0.75rem; }
-.pace-section, .txn-section { display: grid; gap: 0; }
+.section-heading { font-size: 1rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #5a6a61; margin: 0; }
+.breakdown-section, .txn-section { display: grid; gap: 1rem; }
+.txn-section-header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.txn-edit-btn { display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; border-radius: 0.5rem; transition: background 0.15s, opacity 0.15s; }
+.txn-pencil-btn { background: none; color: #5a6a61; padding: 4px; }
+.txn-pencil-btn svg { width: 16px; height: 16px; display: block; }
+.txn-pencil-btn:hover { background: #e8ebe0; color: #17372c; }
+.txn-save-btn { background: #c0392b; color: white; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; padding: 4px 12px; }
+.txn-save-btn:hover { background: #a93226; }
+.breakdown-section .pace-chart-wrap { margin-top: 0; }
 
 /* Pace chart */
 .pace-chart-wrap { border: 1px solid #d7d9cc; border-radius: 0.75rem; background: #fffefa; padding: 0.75rem; overflow: hidden; }
@@ -124,6 +133,7 @@ button:disabled { opacity: 0.65; cursor: wait; }
 .txn-icon { font-size: 1.25rem; flex-shrink: 0; margin-top: 1px; }
 .txn-main { flex: 1; min-width: 0; display: grid; gap: 0.25rem; }
 .txn-merchant { font-weight: 500; font-size: 0.9rem; color: #17372c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.txn-subcategory { font-size: 0.75rem; color: #7a8c82; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .txn-meta { display: flex; gap: 0.35rem; flex-wrap: wrap; }
 .badge { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 999px; letter-spacing: 0.03em; }
 .badge-pending { background: #fdf2ee; color: #7a2e1e; border: 1px solid #e8a090; }
@@ -134,5 +144,7 @@ button:disabled { opacity: 0.65; cursor: wait; }
 .txn-refund { color: #216547; }
 
 /* Category picker */
+.category-picker-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; }
+.category-picker-error { font-size: 0.7rem; color: #b84631; }
 .category-picker { font: inherit; font-size: 0.75rem; color: #5a6a61; background: transparent; border: 1px solid #d7d9cc; border-radius: 999px; padding: 0.2rem 0.5rem; cursor: pointer; max-width: 9rem; }
 .category-picker:disabled { opacity: 0.6; cursor: wait; }
