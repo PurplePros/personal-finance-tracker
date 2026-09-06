@@ -1,5 +1,11 @@
 import { useAccounts } from './AccountsContext'
+import type { Institution } from '../api/types'
 import type { AccountView, InstitutionGroup } from '../dashboard/deriveDashboard'
+
+// Plaid update-mode Link is opened with item_id when available; institution id
+// is the fallback for items whose plaid_item_id hasn't been populated yet (this
+// path predates account_selection_enabled and triggers a fresh link flow).
+type ManageOpts = { itemId: string; institutionId?: never } | { institutionId: string; itemId?: never }
 
 const currency = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' })
 
@@ -33,14 +39,41 @@ function AccountRow({ account }: { account: AccountView }) {
   )
 }
 
-function InstitutionList({ institutions }: { institutions: InstitutionGroup[] }) {
+function InstitutionList({
+  institutions,
+  rawInstitutions,
+  isReconnecting,
+  onManage,
+}: {
+  institutions: InstitutionGroup[]
+  rawInstitutions: Institution[]
+  isReconnecting: boolean
+  onManage: (opts: ManageOpts) => void
+}) {
   return (
     <section className="institutions" aria-label="Accounts by institution">
-      {institutions.map((institution) => (
+      {institutions.map((institution) => {
+        const raw = rawInstitutions.find((i) => i.id === institution.id)
+        const manageOpts: ManageOpts | null = raw
+          ? raw.plaid_item_id
+            ? { itemId: raw.plaid_item_id }
+            : { institutionId: raw.id }
+          : null
+        return (
         <article className="institution" key={institution.id}>
           <header className="institution-header">
             <h2>{institution.name}</h2>
             <Balance balance={institution.subtotal} />
+            {manageOpts && (
+              <button
+                className="manage-accounts-btn"
+                disabled={isReconnecting}
+                onClick={() => onManage(manageOpts)}
+                type="button"
+              >
+                Manage accounts
+              </button>
+            )}
           </header>
 
           {institution.accounts.length > 0 && (
@@ -64,7 +97,8 @@ function InstitutionList({ institutions }: { institutions: InstitutionGroup[] })
             </section>
           )}
         </article>
-      ))}
+        )
+      })}
     </section>
   )
 }
@@ -110,7 +144,12 @@ export default function AccountsView() {
 
       {dashboard && (
         dashboard.institutions.length > 0
-          ? <InstitutionList institutions={dashboard.institutions} />
+          ? <InstitutionList
+              institutions={dashboard.institutions}
+              rawInstitutions={institutions}
+              isReconnecting={isReconnecting}
+              onManage={(opts: ManageOpts) => void reconnect(opts)}
+            />
           : <p className="empty-state">No accounts to show yet.</p>
       )}
     </div>

@@ -9,6 +9,7 @@ from plaid.model.item_public_token_exchange_request import (
     ItemPublicTokenExchangeRequest,
 )
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
+from plaid.model.link_token_create_request_update import LinkTokenCreateRequestUpdate
 from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
 from plaid.model.link_token_transactions import LinkTokenTransactions
 from plaid.model.products import Products
@@ -152,6 +153,10 @@ class PlaidService:
         }
         if access_token is not None:
             kwargs["access_token"] = access_token
+            # Allow the user to add new accounts to the existing item, not just re-auth.
+            kwargs["update"] = LinkTokenCreateRequestUpdate(
+                account_selection_enabled=True
+            )
         else:
             kwargs["products"] = [Products("transactions")]
         request = LinkTokenCreateRequest(**kwargs)

@@ -4,7 +4,7 @@ import uuid
 from sqlmodel import Session, col, select
 
 from guru.api.categorization import ResolvedCategory, validate_user_category
-from guru.api.models import AccountType, UserCategory
+from guru.api.models import SPENDING_ACCOUNT_TYPES, UserCategory
 from guru.db.models import Account, Transaction
 
 # First Sync backfills roughly 13 months; the read endpoint defaults to the
@@ -23,22 +23,21 @@ def list_transactions(
     start: datetime.date | None = None,
     end: datetime.date | None = None,
 ) -> list[dict]:
-    """Return CAD Credit Card transactions in [start, end], newest first.
+    """Return CAD Credit Card and Chequing transactions in [start, end], newest first.
 
-    Filters to Credit Card accounts denominated in CAD, since the spending view
-    covers only credit-card activity. Defaults to the last ~13 months.
+    Defaults to the last ~13 months. Savings and Investment accounts are excluded.
     """
     default_start, default_end = _default_range()
     start = start or default_start
     end = end or default_end
 
-    # Join to Account (via the FK) to filter to CAD Credit Card accounts. The
-    # join condition is inferred from Transaction.account_id -> account.id.
+    # Join to Account (via the FK) to filter to CAD Credit Card and Chequing accounts.
+    # The join condition is inferred from Transaction.account_id -> account.id.
     rows = session.exec(
         select(Transaction)
         .join(Account)
         .where(
-            Account.type == AccountType.CREDIT,
+            Account.type.in_(list(SPENDING_ACCOUNT_TYPES)),
             Account.iso_currency_code == "CAD",
             col(Transaction.date) >= start,
             col(Transaction.date) <= end,

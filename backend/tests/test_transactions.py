@@ -257,10 +257,10 @@ def test_refund_carries_negative_amount(client, fake_plaid, seed_institution):
     assert txn["is_spending"] is True
 
 
-def test_only_credit_card_transactions_are_returned(
+def test_chequing_transactions_are_returned_alongside_credit_card(
     client, fake_plaid, seed_institution
 ):
-    """Transactions on non-Credit-Card accounts are not surfaced."""
+    """Chequing transactions are synced and returned alongside credit cards."""
     seed_institution(access_token="tok-1")
     fake_plaid.set_accounts(
         "tok-1",
@@ -293,9 +293,247 @@ def test_only_credit_card_transactions_are_returned(
     client.post("/api/sync")
 
     transactions = client.get("/api/transactions").json()
+    assert len(transactions) == 2
+    amounts = {t["amount"] for t in transactions}
+    assert amounts == {1000, 2000}
+
+
+def test_savings_account_transactions_are_excluded(
+    client, fake_plaid, seed_institution
+):
+    """Transactions on Savings and Investment accounts are not surfaced."""
+    seed_institution(access_token="tok-1")
+    fake_plaid.set_accounts(
+        "tok-1",
+        [
+            plaid_account(
+                account_id="cc-1",
+                name="Visa",
+                plaid_type="credit",
+                subtype="credit card",
+                current=100.00,
+                iso_currency_code="CAD",
+            ),
+            plaid_account(
+                account_id="sav-1",
+                name="Savings",
+                plaid_type="depository",
+                subtype="savings",
+                current=5000.00,
+                iso_currency_code="CAD",
+            ),
+        ],
+    )
+    fake_plaid.set_transactions(
+        "tok-1",
+        added=[
+            plaid_transaction("txn-cc", "cc-1", 10.00, name="Card buy"),
+            plaid_transaction("txn-sav", "sav-1", 20.00, name="Savings buy"),
+        ],
+    )
+    client.post("/api/sync")
+
+    transactions = client.get("/api/transactions").json()
     assert len(transactions) == 1
-    assert transactions[0]["merchant_name"] is None
     assert transactions[0]["amount"] == 1000
+
+
+def test_e_transfer_without_detail_defaults_to_spending(
+    client, fake_plaid, seed_institution
+):
+    """TRANSFER_IN/OUT with no detailed signal defaults to spending (Finances > Other).
+
+    Plaid uses the same primary signals for both credit card credits and chequing
+    e-Transfers. Without a distinct detailed signal we cannot tell them apart, so
+    they land in Finances > Other (spending) for the holder to re-categorize via PATCH.
+    """
+    seed_institution(access_token="tok-1")
+    fake_plaid.set_accounts(
+        "tok-1",
+        [
+            plaid_account(
+                account_id="chq-1",
+                name="Chequing",
+                plaid_type="depository",
+                subtype="checking",
+                current=1000.00,
+                iso_currency_code="CAD",
+            )
+        ],
+    )
+    fake_plaid.set_transactions(
+        "tok-1",
+        added=[
+            plaid_transaction(
+                "txn-transfer-in",
+                "chq-1",
+                -50.00,
+                name="INTERAC E-TFR FROM FRIEND",
+                primary_category="TRANSFER_IN",
+                detailed_category=None,
+                confidence="HIGH",
+            ),
+            plaid_transaction(
+                "txn-transfer-out",
+                "chq-1",
+                75.00,
+                name="INTERAC E-TFR TO FRIEND",
+                primary_category="TRANSFER_OUT",
+                detailed_category=None,
+                confidence="HIGH",
+            ),
+        ],
+    )
+    client.post("/api/sync")
+
+    for txn in client.get("/api/transactions").json():
+        assert txn["category"] == {"major": "Finances", "subcategory": "Other"}
+        assert txn["is_spending"] is True
+
+
+def test_own_account_transfer_is_not_spending(client, fake_plaid, seed_institution):
+    """A transfer between own accounts (ACCOUNT_TRANSFER detailed) is not spending."""
+    seed_institution(access_token="tok-1")
+    fake_plaid.set_accounts(
+        "tok-1",
+        [
+            plaid_account(
+                account_id="chq-1",
+                name="Chequing",
+                plaid_type="depository",
+                subtype="checking",
+                current=1000.00,
+                iso_currency_code="CAD",
+            )
+        ],
+    )
+    fake_plaid.set_transactions(
+        "tok-1",
+        added=[
+            plaid_transaction(
+                "txn-own-transfer",
+                "chq-1",
+                -500.00,
+                name="TRANSFER TO SAVINGS",
+                primary_category="TRANSFER_OUT",
+                detailed_category="TRANSFER_OUT_ACCOUNT_TRANSFER",
+                confidence="VERY_HIGH",
+            )
+        ],
+    )
+    client.post("/api/sync")
+
+    txn = client.get("/api/transactions").json()[0]
+    assert txn["category"] == {"major": "Finances", "subcategory": "Transfers"}
+    assert txn["is_spending"] is False
+
+
+def test_income_is_not_spending_and_maps_to_finances_income(
+    client, fake_plaid, seed_institution
+):
+    """A payroll deposit (INCOME primary) lands in Finances/Income, not spending."""
+    seed_institution(access_token="tok-1")
+    fake_plaid.set_accounts(
+        "tok-1",
+        [
+            plaid_account(
+                account_id="chq-1",
+                name="Chequing",
+                plaid_type="depository",
+                subtype="checking",
+                current=5000.00,
+                iso_currency_code="CAD",
+            )
+        ],
+    )
+    fake_plaid.set_transactions(
+        "tok-1",
+        added=[
+            plaid_transaction(
+                "txn-payroll",
+                "chq-1",
+                -3000.00,  # inflow: paycheck
+                name="EMPLOYER DIRECT DEPOSIT",
+                primary_category="INCOME",
+                detailed_category=None,
+                confidence="HIGH",
+            )
+        ],
+    )
+    client.post("/api/sync")
+
+    txn = client.get("/api/transactions").json()[0]
+    assert txn["category"] == {"major": "Finances", "subcategory": "Income"}
+    assert txn["is_spending"] is False
+
+
+def test_credit_card_payment_is_not_double_counted(
+    client, fake_plaid, seed_institution
+):
+    """A card payment appears on both sides but only the purchase counts as spending.
+
+    The chequing debit for a card payment is tagged LOAN_PAYMENTS_CREDIT_CARD_PAYMENT
+    (non-spending Transfers). The credit card purchase was already counted as spending.
+    Both sides are stored, but only the purchase contributes to the spending total.
+    """
+    seed_institution(access_token="tok-1")
+    fake_plaid.set_accounts(
+        "tok-1",
+        [
+            plaid_account(
+                account_id="cc-1",
+                name="Visa",
+                plaid_type="credit",
+                subtype="credit card",
+                current=0.00,
+                iso_currency_code="CAD",
+            ),
+            plaid_account(
+                account_id="chq-1",
+                name="Chequing",
+                plaid_type="depository",
+                subtype="checking",
+                current=1000.00,
+                iso_currency_code="CAD",
+            ),
+        ],
+    )
+    fake_plaid.set_transactions(
+        "tok-1",
+        added=[
+            # The original purchase on the credit card - counts as spending.
+            plaid_transaction(
+                "txn-purchase",
+                "cc-1",
+                50.00,
+                name="Coffee Shop",
+                primary_category="FOOD_AND_DRINK",
+                detailed_category="FOOD_AND_DRINK_COFFEE",
+                confidence="HIGH",
+            ),
+            # The chequing debit that pays the credit card - non-spending Transfers.
+            plaid_transaction(
+                "txn-payment",
+                "chq-1",
+                500.00,
+                name="CREDIT CARD PAYMENT",
+                primary_category="LOAN_PAYMENTS",
+                detailed_category="LOAN_PAYMENTS_CREDIT_CARD_PAYMENT",
+                confidence="VERY_HIGH",
+            ),
+        ],
+    )
+    client.post("/api/sync")
+
+    transactions = client.get("/api/transactions").json()
+    assert len(transactions) == 2
+
+    purchase = next(t for t in transactions if t["amount"] == 5000)
+    payment = next(t for t in transactions if t["amount"] == 50000)
+
+    assert purchase["is_spending"] is True
+    assert payment["is_spending"] is False
+    assert payment["category"] == {"major": "Finances", "subcategory": "Transfers"}
 
 
 def test_only_cad_transactions_are_returned(client, fake_plaid, seed_institution):
@@ -486,6 +724,7 @@ def test_categories_endpoint_returns_full_taxonomy(client):
         "Bank fees and interest",
         "Cash withdrawals",
         "Transfers",
+        "Income",
         "Other",
     ]
     # Every non-terminal major ends with Other; Miscellaneous is terminal.

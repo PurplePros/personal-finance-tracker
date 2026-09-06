@@ -87,7 +87,7 @@ class Account(BaseSQLModel, table=True):
 
 
 class Transaction(BaseSQLModel, table=True):
-    """A single posted or pending money movement on a Credit Card Account.
+    """A single posted or pending money movement on a Credit Card or Chequing Account.
 
     Stores only the raw Plaid signals needed to recompute Effective Category at
     read time (ADR 0001). No derived category column is stored.
@@ -115,7 +115,7 @@ class Transaction(BaseSQLModel, table=True):
 
     account_id: uuid.UUID = Field(
         foreign_key="account.id",
-        description="Credit Card Account this transaction belongs to",
+        description="Credit Card or Chequing Account this transaction belongs to",
     )
     plaid_transaction_id: str = Field(
         unique=True,

@@ -15,6 +15,10 @@ class AccountType(StrEnum):
     INVESTMENT = "Investment"
 
 
+# Account types that surface transactions in the Spending view.
+SPENDING_ACCOUNT_TYPES = frozenset({AccountType.CREDIT, AccountType.CHEQUING})
+
+
 class PlaidConfidence(StrEnum):
     """Confidence level Plaid assigns to a Personal Finance Category signal."""
 
