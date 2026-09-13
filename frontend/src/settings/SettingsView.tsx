@@ -2,17 +2,18 @@ import { useEffect, useState } from 'react'
 import {
   createManualInstitution,
   deleteManualInstitution,
-  fetchManualInstitutions,
   fetchSettings,
   patchSettings,
 } from '../api/client'
 import type { ManualInstitution } from '../api/types'
+import { useAccounts } from '../accounts/AccountsContext'
 import { useBudget } from '../budget/BudgetContext'
 
 const HOLDERS = ['Catherine', 'Jade'] as const
 
 export default function SettingsView() {
   const { refresh: refreshBudget } = useBudget()
+  const { institutions, refresh: refreshAccounts } = useAccounts()
 
   // --- Split ratio ---
   const [catherineRatio, setCatherineRatio] = useState(0.5)
@@ -22,8 +23,16 @@ export default function SettingsView() {
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
-  // --- Manual institutions ---
-  const [manualInstitutions, setManualInstitutions] = useState<ManualInstitution[]>([])
+  // --- Manual institutions (local additions/deletions layered on top of AccountsContext state) ---
+  const [localAdded, setLocalAdded] = useState<ManualInstitution[]>([])
+  const [localDeleted, setLocalDeleted] = useState<Set<string>>(new Set())
+  const manualInstitutions: ManualInstitution[] = [
+    ...institutions
+      .filter((i) => i.is_manual && !localDeleted.has(i.id))
+      .map((i) => ({ id: i.id, name: i.name, holder: i.holder, is_manual: true as const })),
+    ...localAdded.filter((i) => !localDeleted.has(i.id)),
+  ].sort((a, b) => a.name.localeCompare(b.name))
+
   const [addName, setAddName] = useState('')
   const [addHolder, setAddHolder] = useState<typeof HOLDERS[number]>('Catherine')
   const [addError, setAddError] = useState<string | null>(null)
@@ -32,11 +41,10 @@ export default function SettingsView() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([fetchSettings(), fetchManualInstitutions()])
-      .then(([s, insts]) => {
+    fetchSettings()
+      .then((s) => {
         setCatherineRatio(s.catherine_ratio)
         setJadeRatio(1 - s.catherine_ratio)
-        setManualInstitutions(insts)
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Unable to load settings.'))
       .finally(() => setIsLoading(false))
@@ -88,8 +96,9 @@ export default function SettingsView() {
     setAddError(null)
     try {
       const inst = await createManualInstitution(name, addHolder)
-      setManualInstitutions((prev) => [...prev, inst].sort((a, b) => a.name.localeCompare(b.name)))
+      setLocalAdded((prev) => [...prev, inst])
       setAddName('')
+      void refreshAccounts()
     } catch (cause) {
       setAddError(cause instanceof Error ? cause.message : 'Unable to add institution.')
     } finally {
@@ -102,7 +111,8 @@ export default function SettingsView() {
     setDeleteError(null)
     try {
       await deleteManualInstitution(id)
-      setManualInstitutions((prev) => prev.filter((i) => i.id !== id))
+      setLocalDeleted((prev) => new Set([...prev, id]))
+      void refreshAccounts()
     } catch (cause) {
       setDeleteError(cause instanceof Error ? cause.message : 'Unable to delete institution.')
     } finally {

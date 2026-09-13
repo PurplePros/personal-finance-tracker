@@ -39,31 +39,21 @@ def create_manual_institution(session: Session, name: str, holder: str) -> dict:
     return _serialize(institution)
 
 
-def list_manual_institutions(session: Session) -> list[dict]:
-    """Return all Manual institutions, ordered by name."""
-    rows = session.exec(
-        select(Institution)
-        .where(Institution.plaid_access_token.is_(None))  # type: ignore[union-attr]
-        .order_by(Institution.name)
-    ).all()
-    return [_serialize(i) for i in rows]
-
-
 def delete_manual_institution(session: Session, institution_id: uuid.UUID) -> bool:
-    """Delete a Manual institution and its paired account.
+    """Delete a Manual institution and its paired account(s).
 
     Returns True on success, False if not found.
-    Raises HasTransactionsError if the institution's account has transactions.
+    Raises HasTransactionsError if any account under this institution has transactions.
     """
     institution = session.get(Institution, institution_id)
     if institution is None or not institution.is_manual:
         return False
 
-    account = session.exec(
+    accounts = session.exec(
         select(Account).where(Account.institution_id == institution_id)
-    ).first()
+    ).all()
 
-    if account is not None:
+    for account in accounts:
         has_txns = session.exec(
             select(Transaction).where(Transaction.account_id == account.id).limit(1)
         ).first()
@@ -71,6 +61,8 @@ def delete_manual_institution(session: Session, institution_id: uuid.UUID) -> bo
             raise HasTransactionsError(
                 f"Institution {institution_id} has transactions; delete them first"
             )
+
+    for account in accounts:
         session.delete(account)
 
     session.delete(institution)

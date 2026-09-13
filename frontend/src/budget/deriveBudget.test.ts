@@ -111,6 +111,40 @@ describe('deriveBudget', () => {
     })
   })
 
+  describe('has_manual flag on subcategory actuals', () => {
+    it('is false when no transactions in a subcategory are manual', () => {
+      const transactions = [
+        txn({ account_id: 'acc-1', amount: 5000, major: 'Food and personal items', subcategory: 'Groceries and personal items', is_manual: false }),
+      ]
+      const { rows } = deriveBudget(transactions, NO_PLAN, EQUAL_SPLIT, {}, MONTH)
+      const food = rows.find((r) => r.major === 'Food and personal items')!
+      const sub = food.subcategories.find((s) => s.subcategory === 'Groceries and personal items')!
+      expect(sub.has_manual).toBe(false)
+    })
+
+    it('is true when at least one transaction in a subcategory is manual', () => {
+      const transactions = [
+        txn({ account_id: 'acc-1', amount: 5000, major: 'Food and personal items', subcategory: 'Groceries and personal items', is_manual: false }),
+        txn({ account_id: 'acc-2', amount: 3000, major: 'Food and personal items', subcategory: 'Groceries and personal items', is_manual: true }),
+      ]
+      const { rows } = deriveBudget(transactions, NO_PLAN, EQUAL_SPLIT, {}, MONTH)
+      const food = rows.find((r) => r.major === 'Food and personal items')!
+      const sub = food.subcategories.find((s) => s.subcategory === 'Groceries and personal items')!
+      expect(sub.has_manual).toBe(true)
+    })
+
+    it('does not set has_manual on a subcategory that has only Plaid transactions', () => {
+      const transactions = [
+        txn({ account_id: 'acc-1', amount: 5000, major: 'Food and personal items', subcategory: 'Restaurants', is_manual: false }),
+        txn({ account_id: 'acc-2', amount: 3000, major: 'Food and personal items', subcategory: 'Groceries and personal items', is_manual: true }),
+      ]
+      const { rows } = deriveBudget(transactions, NO_PLAN, EQUAL_SPLIT, {}, MONTH)
+      const food = rows.find((r) => r.major === 'Food and personal items')!
+      const restaurants = food.subcategories.find((s) => s.subcategory === 'Restaurants')!
+      expect(restaurants.has_manual).toBe(false)
+    })
+  })
+
   describe('settlement', () => {
     it('net is zero when there are no spending transactions', () => {
       const { settlement } = deriveBudget([], NO_PLAN, EQUAL_SPLIT, {}, MONTH)

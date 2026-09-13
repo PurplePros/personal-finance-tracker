@@ -114,6 +114,8 @@ def create_manual(
             category=category,
             note=body.get("note") or None,
         )
+    except NotManualTransactionError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except InvalidCategoryError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 

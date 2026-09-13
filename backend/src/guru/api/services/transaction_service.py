@@ -129,7 +129,7 @@ def create_manual_transaction(
     """
     account = session.get(Account, account_id)
     if account is None or account.type != AccountType.MANUAL:
-        raise ValueError(f"account {account_id} is not a Manual account")
+        raise NotManualTransactionError(f"account {account_id} is not a Manual account")
 
     if not validate_user_category(category.major, category.subcategory):
         raise InvalidCategoryError(

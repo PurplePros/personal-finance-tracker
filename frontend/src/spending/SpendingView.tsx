@@ -717,8 +717,8 @@ function ManualTransactionModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const amountCents = Math.round(parseFloat(amountStr) * 100)
-    if (isNaN(amountCents) || amountCents <= 0) {
-      setError('Amount must be a positive number.')
+    if (isNaN(amountCents) || amountCents === 0) {
+      setError('Amount must be non-zero. Use a negative value for a refund or credit.')
       return
     }
     if (!editingRow && !institutionId) {
@@ -785,7 +785,7 @@ function ManualTransactionModal({
             />
           </div>
           <div className="form-field">
-            <label htmlFor="mt-amount" className="form-label">Amount ($)</label>
+            <label htmlFor="mt-amount" className="form-label">Amount ($, negative for refund)</label>
             <input
               id="mt-amount"
               type="number"
@@ -794,7 +794,6 @@ function ManualTransactionModal({
               onChange={(e) => setAmountStr(e.target.value)}
               disabled={saving}
               required
-              min="0.01"
               step="0.01"
               placeholder="0.00"
             />
