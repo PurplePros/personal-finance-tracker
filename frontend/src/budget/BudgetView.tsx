@@ -125,7 +125,7 @@ interface BudgetRowProps {
   major: string
   plannedCents: number
   actualCents: number
-  subcategories: { subcategory: string | null; actual_cents: number }[]
+  subcategories: { subcategory: string | null; actual_cents: number; has_manual: boolean }[]
   selectedMonth: string
   onSavePlanned: (major: string, month: string | null, cents: number) => Promise<void>
 }
@@ -167,7 +167,10 @@ function BudgetRowItem({ major, plannedCents, actualCents, subcategories, select
       </tr>
       {expanded && subcategories.map((sub) => (
         <tr key={sub.subcategory ?? 'other'} className="budget-subrow">
-          <td className="budget-cell budget-cell--subname">{sub.subcategory ?? 'Other'}</td>
+          <td className="budget-cell budget-cell--subname">
+            {sub.subcategory ?? 'Other'}
+            {sub.has_manual && <span className="manual-badge" title="Includes manually entered transactions">M</span>}
+          </td>
           <td className="budget-cell" />
           <td className="budget-cell budget-cell--actual">{formatAmount(sub.actual_cents)}</td>
           <td className="budget-cell" />
@@ -208,7 +211,7 @@ function SettlementSection({ netCents }: { netCents: number }) {
 export default function BudgetView() {
   const { transactions } = useSpending()
   const { budgetPlan, settings, isLoading, error, saveTemplate, saveOverride } = useBudget()
-  const { institutions, dashboard } = useAccounts()
+  const { institutions, accounts } = useAccounts()
 
   const months = lastTwelveMonths()
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -224,18 +227,13 @@ export default function BudgetView() {
     try { localStorage.setItem('budget-selected-month', m) } catch {}
   }
 
-  // Build holderByAccountId: account.id -> institution.holder, using
-  // DashboardViewModel institutions which carry per-account data.
+  // Build holderByAccountId: account.id -> institution.holder.
+  // Uses raw accounts (including Manual) so manual transactions participate in settlement.
   const holderByAccountId: Record<string, string> = {}
-  if (dashboard) {
-    const holderById = new Map(institutions.map((i) => [i.id, i.holder]))
-    for (const group of dashboard.institutions) {
-      const holder = holderById.get(group.id) ?? ''
-      if (!holder) continue
-      for (const acc of group.accounts) {
-        holderByAccountId[acc.id] = holder
-      }
-    }
+  const holderById = new Map(institutions.map((i) => [i.id, i.holder]))
+  for (const acc of accounts) {
+    const holder = holderById.get(acc.institution_id)
+    if (holder) holderByAccountId[acc.id] = holder
   }
 
   const splitRatio = {

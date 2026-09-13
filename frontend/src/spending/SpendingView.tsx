@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react'
-import type { CategoryTaxonomy } from '../api/types'
+import type { CategoryTaxonomy, ManualInstitution } from '../api/types'
+import { useAccounts } from '../accounts/AccountsContext'
 import type { AvgDailyPoint, DailyPoint, MajorCategoryBreakdown, SpendingTransactionRow } from './deriveSpending'
 import { deriveSpending } from './deriveSpending'
 import { useSpending } from './SpendingContext'
+import type { ManualTransactionInput } from './SpendingContext'
 import commentIcon from '../assets/comment.png'
 
 const cadCurrency = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' })
@@ -447,14 +449,28 @@ function TransactionRow({
   isEditing,
   onPatch,
   onPatchNote,
+  onEditManual,
+  onDeleteManual,
 }: {
   row: SpendingTransactionRow
   categories: CategoryTaxonomy[]
   isEditing: boolean
   onPatch: (txnId: string, category: { major: string; subcategory: string } | null) => Promise<void>
   onPatchNote: (txnId: string, note: string | null) => Promise<void>
+  onEditManual: (row: SpendingTransactionRow) => void
+  onDeleteManual: (txnId: string) => Promise<void>
 }) {
   const [isEditingNote, setIsEditingNote] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  async function handleDelete() {
+    setIsDeleting(true)
+    try {
+      await onDeleteManual(row.id)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   return (
     <li className="txn-row">
@@ -480,6 +496,7 @@ function TransactionRow({
           {row.pending && <span className="badge badge-pending">Pending</span>}
           {row.isLowConfidence && <span className="badge badge-low-confidence">Low confidence</span>}
           {row.isManualEdit && <span className="badge badge-manual">Manual edit</span>}
+          {row.isManual && <span className="badge badge-manual-entry">Manual</span>}
         </div>
       </div>
       <div className="txn-right">
@@ -488,15 +505,38 @@ function TransactionRow({
             ? `−${formatAmount(-row.amount)}`
             : formatAmount(row.amount)}
         </span>
-        <button
-          className={`txn-note-btn ${row.note ? 'txn-note-btn--active' : 'txn-note-btn--dim'}`}
-          type="button"
-          aria-label={row.note ? 'Edit note' : 'Add note'}
-          onClick={() => setIsEditingNote((v) => !v)}
-        >
-          <SpeechBubbleIcon filled={!!row.note} />
-        </button>
-        {isEditing && <CategoryPicker row={row} categories={categories} onPatch={onPatch} />}
+        {row.isManual && isEditing && (
+          <div className="txn-manual-actions">
+            <button
+              className="txn-manual-btn"
+              type="button"
+              aria-label="Edit transaction"
+              onClick={() => onEditManual(row)}
+            >
+              Edit
+            </button>
+            <button
+              className="txn-manual-btn txn-manual-btn--delete"
+              type="button"
+              aria-label="Delete transaction"
+              disabled={isDeleting}
+              onClick={() => void handleDelete()}
+            >
+              {isDeleting ? '…' : 'Delete'}
+            </button>
+          </div>
+        )}
+        {!row.isManual && (
+          <button
+            className={`txn-note-btn ${row.note ? 'txn-note-btn--active' : 'txn-note-btn--dim'}`}
+            type="button"
+            aria-label={row.note ? 'Edit note' : 'Add note'}
+            onClick={() => setIsEditingNote((v) => !v)}
+          >
+            <SpeechBubbleIcon filled={!!row.note} />
+          </button>
+        )}
+        {isEditing && !row.isManual && <CategoryPicker row={row} categories={categories} onPatch={onPatch} />}
       </div>
     </li>
   )
@@ -511,6 +551,8 @@ function DayGroup({
   isEditing,
   onPatch,
   onPatchNote,
+  onEditManual,
+  onDeleteManual,
 }: {
   date: string
   transactions: SpendingTransactionRow[]
@@ -518,6 +560,8 @@ function DayGroup({
   isEditing: boolean
   onPatch: (txnId: string, category: { major: string; subcategory: string } | null) => Promise<void>
   onPatchNote: (txnId: string, note: string | null) => Promise<void>
+  onEditManual: (row: SpendingTransactionRow) => void
+  onDeleteManual: (txnId: string) => Promise<void>
 }) {
   return (
     <section className="day-group">
@@ -531,6 +575,8 @@ function DayGroup({
             isEditing={isEditing}
             onPatch={onPatch}
             onPatchNote={onPatchNote}
+            onEditManual={onEditManual}
+            onDeleteManual={onDeleteManual}
           />
         ))}
       </ul>
@@ -622,10 +668,221 @@ function NoteEditor({
   )
 }
 
+// --- Manual Transaction Modal ---
+
+function ManualTransactionModal({
+  categories,
+  editingRow,
+  onSave,
+  onClose,
+}: {
+  categories: CategoryTaxonomy[]
+  editingRow: SpendingTransactionRow | null
+  onSave: (input: ManualTransactionInput) => Promise<void>
+  onClose: () => void
+}) {
+  const { institutions } = useAccounts()
+  const manualInstitutions = institutions.filter((i) => i.is_manual) as ManualInstitution[]
+
+  const defaultCategory = categories[0]
+  const defaultSubcategory = defaultCategory?.subcategories[0] ?? ''
+
+  const [institutionId, setInstitutionId] = useState(
+    editingRow ? '' : (manualInstitutions[0]?.id ?? ''),
+  )
+  const [name, setName] = useState(editingRow?.name ?? '')
+  const [amountStr, setAmountStr] = useState(
+    editingRow ? String(Math.abs(editingRow.amount) / 100) : '',
+  )
+  const [date, setDate] = useState(editingRow?.date ?? new Date().toISOString().slice(0, 10))
+  const [major, setMajor] = useState(
+    editingRow?.category.major ?? defaultCategory?.major ?? '',
+  )
+  const [subcategory, setSubcategory] = useState(
+    editingRow?.category.subcategory ?? defaultSubcategory,
+  )
+  const [note, setNote] = useState(editingRow?.note ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const availableSubcategories =
+    categories.find((c) => c.major === major)?.subcategories ?? []
+
+  function handleMajorChange(newMajor: string) {
+    setMajor(newMajor)
+    const subs = categories.find((c) => c.major === newMajor)?.subcategories ?? []
+    setSubcategory(subs[0] ?? '')
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const amountCents = Math.round(parseFloat(amountStr) * 100)
+    if (isNaN(amountCents) || amountCents <= 0) {
+      setError('Amount must be a positive number.')
+      return
+    }
+    if (!editingRow && !institutionId) {
+      setError('Select a manual institution.')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      await onSave({
+        institutionId: editingRow ? '' : institutionId,
+        name: name.trim(),
+        amountCents,
+        date,
+        major,
+        subcategory,
+        note: note.trim() || null,
+      })
+      onClose()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Failed to save transaction.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal aria-label={editingRow ? 'Edit transaction' : 'Add transaction'}>
+      <div className="modal-box">
+        <h2 className="modal-heading">{editingRow ? 'Edit transaction' : 'Add transaction'}</h2>
+        <form onSubmit={(e) => void handleSubmit(e)} className="manual-txn-form">
+          {!editingRow && (
+            <div className="form-field">
+              <label htmlFor="mt-institution" className="form-label">Institution</label>
+              {manualInstitutions.length === 0 ? (
+                <p className="form-hint">Add a manual institution in Settings first.</p>
+              ) : (
+                <select
+                  id="mt-institution"
+                  className="form-input"
+                  value={institutionId}
+                  onChange={(e) => setInstitutionId(e.target.value)}
+                  disabled={saving}
+                  required
+                >
+                  {manualInstitutions.map((i) => (
+                    <option key={i.id} value={i.id}>{i.name} ({i.holder})</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+          <div className="form-field">
+            <label htmlFor="mt-name" className="form-label">Description</label>
+            <input
+              id="mt-name"
+              type="text"
+              className="form-input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={saving}
+              required
+              placeholder="e.g. Groceries"
+            />
+          </div>
+          <div className="form-field">
+            <label htmlFor="mt-amount" className="form-label">Amount ($)</label>
+            <input
+              id="mt-amount"
+              type="number"
+              className="form-input"
+              value={amountStr}
+              onChange={(e) => setAmountStr(e.target.value)}
+              disabled={saving}
+              required
+              min="0.01"
+              step="0.01"
+              placeholder="0.00"
+            />
+          </div>
+          <div className="form-field">
+            <label htmlFor="mt-date" className="form-label">Date</label>
+            <input
+              id="mt-date"
+              type="date"
+              className="form-input"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              disabled={saving}
+              required
+            />
+          </div>
+          <div className="form-field">
+            <label htmlFor="mt-category" className="form-label">Category</label>
+            <select
+              id="mt-category"
+              className="form-input"
+              value={major}
+              onChange={(e) => handleMajorChange(e.target.value)}
+              disabled={saving}
+              required
+            >
+              {categories.map((c) => (
+                <option key={c.major} value={c.major}>{c.major}</option>
+              ))}
+            </select>
+          </div>
+          {availableSubcategories.length > 0 && (
+            <div className="form-field">
+              <label htmlFor="mt-subcategory" className="form-label">Subcategory</label>
+              <select
+                id="mt-subcategory"
+                className="form-input"
+                value={subcategory}
+                onChange={(e) => setSubcategory(e.target.value)}
+                disabled={saving}
+              >
+                {availableSubcategories.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="form-field">
+            <label htmlFor="mt-note" className="form-label">Note (optional)</label>
+            <input
+              id="mt-note"
+              type="text"
+              className="form-input"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              disabled={saving}
+              placeholder="Optional note"
+            />
+          </div>
+
+          {error && <p className="form-error" role="alert">{error}</p>}
+
+          <div className="modal-actions">
+            <button type="button" className="modal-cancel-btn" onClick={onClose} disabled={saving}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="modal-save-btn"
+              disabled={saving || (!editingRow && manualInstitutions.length === 0)}
+            >
+              {saving ? 'Saving…' : (editingRow ? 'Save changes' : 'Add transaction')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // --- Main View ---
 
 export default function SpendingView() {
-  const { transactions, categories, isLoading, error, patchCategory, patchNote } = useSpending()
+  const {
+    transactions, categories, isLoading, error,
+    patchCategory, patchNote,
+    addManualTransaction, editManualTransaction, removeManualTransaction,
+  } = useSpending()
 
   const months = lastTwelveMonths()
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -641,8 +898,28 @@ export default function SpendingView() {
     try { localStorage.setItem('spending-selected-month', m) } catch {}
   }
   const [isEditing, setIsEditing] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingRow, setEditingRow] = useState<SpendingTransactionRow | null>(null)
 
   const model = deriveSpending(transactions, selectedMonth)
+
+  function openAddModal() {
+    setEditingRow(null)
+    setModalOpen(true)
+  }
+
+  function openEditModal(row: SpendingTransactionRow) {
+    setEditingRow(row)
+    setModalOpen(true)
+  }
+
+  async function handleSaveManual(input: ManualTransactionInput) {
+    if (editingRow) {
+      await editManualTransaction(editingRow.id, input)
+    } else {
+      await addManualTransaction(input)
+    }
+  }
 
   return (
     <div className="spending-view">
@@ -682,10 +959,17 @@ export default function SpendingView() {
         </section>
       )}
 
-      {model.dayGroupedList.length > 0 && (
-        <section className="txn-section" aria-label="Transactions">
-          <div className="txn-section-header">
-            <h2 className="section-heading">Transactions</h2>
+      <section className="txn-section" aria-label="Transactions">
+        <div className="txn-section-header">
+          <h2 className="section-heading">Transactions</h2>
+          <div className="txn-header-actions">
+            <button
+              className="txn-add-btn"
+              type="button"
+              onClick={openAddModal}
+            >
+              + Add
+            </button>
             {isEditing ? (
               <button className="txn-edit-btn txn-save-btn" type="button" onClick={() => setIsEditing(false)}>
                 Save
@@ -701,18 +985,29 @@ export default function SpendingView() {
               </button>
             )}
           </div>
-          {model.dayGroupedList.map((group) => (
-            <DayGroup
-              key={group.date}
-              date={group.date}
-              transactions={group.transactions}
-              categories={categories}
-              isEditing={isEditing}
-              onPatch={patchCategory}
-              onPatchNote={patchNote}
-            />
-          ))}
-        </section>
+        </div>
+        {model.dayGroupedList.map((group) => (
+          <DayGroup
+            key={group.date}
+            date={group.date}
+            transactions={group.transactions}
+            categories={categories}
+            isEditing={isEditing}
+            onPatch={patchCategory}
+            onPatchNote={patchNote}
+            onEditManual={openEditModal}
+            onDeleteManual={removeManualTransaction}
+          />
+        ))}
+      </section>
+
+      {modalOpen && (
+        <ManualTransactionModal
+          categories={categories}
+          editingRow={editingRow}
+          onSave={handleSaveManual}
+          onClose={() => setModalOpen(false)}
+        />
       )}
     </div>
   )

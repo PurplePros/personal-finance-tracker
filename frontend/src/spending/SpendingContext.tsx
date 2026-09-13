@@ -1,6 +1,23 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { fetchSpendingData, patchTransactionCategory, patchTransactionNote } from '../api/client'
+import {
+  createManualTransaction,
+  deleteManualTransaction,
+  fetchSpendingData,
+  patchTransactionCategory,
+  patchTransactionNote,
+  updateManualTransaction,
+} from '../api/client'
 import type { CategoryTaxonomy, Transaction } from '../api/types'
+
+export interface ManualTransactionInput {
+  institutionId: string
+  name: string
+  amountCents: number
+  date: string
+  major: string
+  subcategory: string
+  note?: string | null
+}
 
 export interface SpendingContextValue {
   transactions: Transaction[]
@@ -10,6 +27,9 @@ export interface SpendingContextValue {
   refresh: () => Promise<void>
   patchCategory: (txnId: string, category: { major: string; subcategory: string } | null) => Promise<void>
   patchNote: (txnId: string, note: string | null) => Promise<void>
+  addManualTransaction: (input: ManualTransactionInput) => Promise<void>
+  editManualTransaction: (txnId: string, input: ManualTransactionInput) => Promise<void>
+  removeManualTransaction: (txnId: string) => Promise<void>
 }
 
 const SpendingContext = createContext<SpendingContextValue | null>(null)
@@ -57,8 +77,40 @@ export function SpendingProvider({ children }: { children: React.ReactNode }) {
     setTransactions((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
   }, [])
 
+  const addManualTransaction = useCallback(async (input: ManualTransactionInput) => {
+    const created = await createManualTransaction({
+      institution_id: input.institutionId,
+      name: input.name,
+      amount_cents: input.amountCents,
+      date: input.date,
+      category: { major: input.major, subcategory: input.subcategory },
+      note: input.note,
+    })
+    setTransactions((prev) => [created, ...prev])
+  }, [])
+
+  const editManualTransaction = useCallback(async (txnId: string, input: ManualTransactionInput) => {
+    const updated = await updateManualTransaction(txnId, {
+      name: input.name,
+      amount_cents: input.amountCents,
+      date: input.date,
+      category: { major: input.major, subcategory: input.subcategory },
+      note: input.note,
+    })
+    setTransactions((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
+  }, [])
+
+  const removeManualTransaction = useCallback(async (txnId: string) => {
+    await deleteManualTransaction(txnId)
+    setTransactions((prev) => prev.filter((t) => t.id !== txnId))
+  }, [])
+
   return (
-    <SpendingContext value={{ transactions, categories, isLoading, error, refresh, patchCategory, patchNote }}>
+    <SpendingContext value={{
+      transactions, categories, isLoading, error, refresh,
+      patchCategory, patchNote,
+      addManualTransaction, editManualTransaction, removeManualTransaction,
+    }}>
       {children}
     </SpendingContext>
   )

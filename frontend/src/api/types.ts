@@ -2,15 +2,24 @@
 
 export type CurrencyCode = string
 
-/** Registered products (RRSP, TFSA) are all `Investment`; the product name lives in `Account.name`. */
-export type AccountType = 'Chequing' | 'Savings' | 'Credit Card' | 'Investment'
+/** Registered products (RRSP, TFSA) are all `Investment`; the product name lives in `Account.name`. Manual accounts belong to Manual Institutions and carry no real balance. */
+export type AccountType = 'Chequing' | 'Savings' | 'Credit Card' | 'Investment' | 'Manual'
 
 export interface Institution {
   id: string
   name: string
-  plaid_id: string
+  plaid_id: string | null
   plaid_item_id: string | null
   holder: string
+  is_manual: boolean
+}
+
+/** A Manual Institution created in Settings for a provider Plaid doesn't support. */
+export interface ManualInstitution {
+  id: string
+  name: string
+  holder: string
+  is_manual: true
 }
 
 export interface SyncResult {
@@ -45,6 +54,8 @@ export interface Transaction {
   name: string
   amount: number
   pending: boolean
+  /** True when entered by hand (not synced from Plaid). */
+  is_manual: boolean
   category: Category
   category_source: CategorySource
   is_spending: boolean

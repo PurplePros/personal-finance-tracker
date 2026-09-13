@@ -8,6 +8,7 @@ import type { DashboardViewModel } from './deriveDashboard'
 export type SyncOutcome = {
   dashboard: DashboardViewModel
   institutions: Institution[]
+  accounts: Account[]
   results: SyncResult[]
 }
 
@@ -36,6 +37,7 @@ export function createOrchestrator(sync: SyncFn, fetch: FetchFn, derive: DeriveF
       return {
         dashboard: derive(data.institutions, data.accounts),
         institutions: data.institutions,
+        accounts: data.accounts,
         results,
       }
     })()

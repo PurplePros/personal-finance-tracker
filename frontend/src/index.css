@@ -139,9 +139,72 @@ button:disabled { opacity: 0.65; cursor: wait; }
 .badge-pending { background: #fdf2ee; color: #7a2e1e; border: 1px solid #e8a090; }
 .badge-low-confidence { background: #fdf8e1; color: #7a5e0e; border: 1px solid #e8d090; }
 .badge-manual { background: #edf1df; color: #17372c; border: 1px solid #c5d49e; }
+.badge-manual-entry { background: #e6eeff; color: #1e3a8a; border: 1px solid #93c5fd; }
 .txn-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; flex-shrink: 0; }
 .txn-amount { font-weight: 600; font-size: 0.9rem; }
 .txn-refund { color: #216547; }
+
+/* Manual transaction actions on a row */
+.txn-manual-actions { display: flex; gap: 0.35rem; }
+.txn-manual-btn { font: inherit; font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 999px; border: 1px solid #d7d9cc; background: transparent; color: #5a6a61; cursor: pointer; }
+.txn-manual-btn:hover { background: #e8ebe0; }
+.txn-manual-btn--delete { color: #b84631; border-color: #e8a090; }
+.txn-manual-btn--delete:hover { background: #fdf2ee; }
+.txn-manual-btn:disabled { opacity: 0.5; cursor: wait; }
+
+/* Transactions header actions */
+.txn-header-actions { display: flex; align-items: center; gap: 0.5rem; }
+.txn-add-btn { font: inherit; font-size: 0.8rem; font-weight: 700; padding: 4px 12px; border: none; border-radius: 0.5rem; background: #17372c; color: #fff; cursor: pointer; letter-spacing: 0.04em; }
+.txn-add-btn:hover { background: #0f2520; }
+
+/* Manual transaction modal */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+.modal-box { background: #fffefa; border-radius: 1rem; padding: 1.5rem; width: 100%; max-width: 28rem; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+.modal-heading { font-size: 1rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #17372c; margin: 0 0 1.25rem; }
+.manual-txn-form { display: grid; gap: 0.75rem; }
+.form-field { display: grid; gap: 0.3rem; }
+.form-label { font-size: 0.75rem; font-weight: 600; color: #5a6a61; letter-spacing: 0.04em; text-transform: uppercase; }
+.form-input { font: inherit; font-size: 0.9rem; border: 1px solid #d7d9cc; border-radius: 0.5rem; padding: 0.45rem 0.65rem; background: #fffefa; color: #17372c; }
+.form-input:focus { outline: none; border-color: #17372c; }
+.form-input:disabled { opacity: 0.6; }
+.form-hint { font-size: 0.8rem; color: #7a8c82; margin: 0; }
+.form-error { font-size: 0.8rem; color: #b84631; margin: 0; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
+.modal-cancel-btn { font: inherit; font-size: 0.85rem; padding: 0.5rem 1rem; border: 1px solid #d7d9cc; border-radius: 0.5rem; background: transparent; color: #5a6a61; cursor: pointer; }
+.modal-cancel-btn:hover { background: #e8ebe0; }
+.modal-save-btn { font: inherit; font-size: 0.85rem; font-weight: 700; padding: 0.5rem 1.25rem; border: none; border-radius: 0.5rem; background: #17372c; color: #fff; cursor: pointer; }
+.modal-save-btn:hover { background: #0f2520; }
+.modal-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Settings view */
+.settings-view { padding: 1.5rem 1rem; max-width: 480px; }
+.settings-heading { font-size: 1.25rem; font-weight: 700; color: #17372c; margin: 0 0 1.5rem; }
+.settings-section { margin-bottom: 2rem; }
+.settings-subheading { font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5a6a61; margin: 0 0 0.4rem; }
+.settings-description { font-size: 0.85rem; color: #7a8c82; margin: 0 0 1rem; }
+.settings-form { display: grid; gap: 0.75rem; }
+.settings-form--inline { margin-top: 1rem; }
+.settings-field { display: grid; gap: 0.3rem; }
+.settings-label { font-size: 0.75rem; font-weight: 600; color: #5a6a61; letter-spacing: 0.04em; text-transform: uppercase; }
+.settings-input { font: inherit; font-size: 0.9rem; border: 1px solid #d7d9cc; border-radius: 0.5rem; padding: 0.45rem 0.65rem; background: #fffefa; color: #17372c; }
+.settings-input:focus { outline: none; border-color: #17372c; }
+.settings-input:disabled { opacity: 0.6; }
+.settings-save-btn { font: inherit; font-size: 0.85rem; font-weight: 700; padding: 0.5rem 1.25rem; border: none; border-radius: 0.5rem; background: #17372c; color: #fff; cursor: pointer; justify-self: start; }
+.settings-save-btn:hover { background: #0f2520; }
+.settings-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.settings-error { font-size: 0.8rem; color: #b84631; margin: 0; }
+.settings-saved { font-size: 0.8rem; color: #216547; margin: 0; }
+.manual-institutions-list { list-style: none; padding: 0; margin: 0 0 0.5rem; border: 1px solid #d7d9cc; border-radius: 0.75rem; overflow: hidden; }
+.manual-institution-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 1rem; border-top: 1px solid #e8e8df; }
+.manual-institution-row:first-child { border-top: none; }
+.manual-institution-name { font-size: 0.9rem; font-weight: 500; color: #17372c; flex: 1; }
+.manual-institution-holder { font-size: 0.8rem; color: #7a8c82; }
+.manual-institution-delete { font: inherit; font-size: 0.75rem; font-weight: 600; padding: 0.15rem 0.6rem; border: 1px solid #e8a090; border-radius: 999px; background: transparent; color: #b84631; cursor: pointer; }
+.manual-institution-delete:hover { background: #fdf2ee; }
+.manual-institution-delete:disabled { opacity: 0.5; cursor: wait; }
+
+/* Budget manual badge */
+.manual-badge { display: inline-block; font-size: 0.65rem; font-weight: 700; background: #e6eeff; color: #1e3a8a; border: 1px solid #93c5fd; border-radius: 3px; padding: 0.05rem 0.25rem; margin-left: 0.4rem; vertical-align: middle; letter-spacing: 0.03em; }
 
 /* Category picker */
 .category-picker-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; }

@@ -4,23 +4,23 @@ import type { BudgetPlanEntry, Transaction } from '../api/types'
 
 const MONTH = '2026-09'
 
-function txn(overrides: Partial<Transaction> & { account_id: string; amount: number; major: string; subcategory?: string | null; date?: string }): Transaction {
+function txn(opts: { account_id: string; amount: number; major: string; subcategory?: string | null; date?: string; is_spending?: boolean; is_manual?: boolean }): Transaction {
   return {
     id: `txn-${Math.random()}`,
-    account_id: overrides.account_id,
-    date: overrides.date ?? `${MONTH}-05`,
+    account_id: opts.account_id,
+    date: opts.date ?? `${MONTH}-05`,
     name: 'Test',
     merchant_name: null,
-    amount: overrides.amount,
+    amount: opts.amount,
     pending: false,
+    is_manual: opts.is_manual ?? false,
     category: {
-      major: overrides.major,
-      subcategory: overrides.subcategory ?? 'Other',
+      major: opts.major,
+      subcategory: opts.subcategory ?? 'Other',
     },
     category_source: 'plaid',
-    is_spending: overrides.is_spending ?? true,
+    is_spending: opts.is_spending ?? true,
     note: null,
-    ...overrides,
   }
 }
 
