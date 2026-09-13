@@ -3,7 +3,7 @@ import uuid
 from decimal import Decimal
 
 from pydantic import field_serializer
-from sqlalchemy import CheckConstraint, Index
+from sqlalchemy import CheckConstraint, Index, text
 from sqlalchemy.orm import declared_attr
 from sqlmodel import Field, SQLModel
 
@@ -196,9 +196,17 @@ class BudgetPlan(BaseSQLModel, table=True):
 
     __tablename__ = "budget_plan"  # type: ignore[assignment]
     __table_args__ = (
-        # A (major, month) pair must be unique; month=NULL treated as one slot
-        # per major via the SQLite partial index workaround.
-        Index("uq_budget_plan_major_month", "major", "month", unique=True),
+        # Enforces uniqueness for month-specific overrides (month IS NOT NULL).
+        # SQLite treats NULL != NULL in UNIQUE constraints, so this index alone
+        # would not prevent two template rows for the same major. The service
+        # layer's SELECT-then-upsert pattern guards the template slot instead.
+        Index(
+            "uq_budget_plan_major_month",
+            "major",
+            "month",
+            unique=True,
+            sqlite_where=text("month IS NOT NULL"),
+        ),
     )
 
     major: str = Field(min_length=1, description="Major spending category name")

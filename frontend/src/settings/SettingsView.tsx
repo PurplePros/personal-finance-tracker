@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { fetchSettings, patchSettings } from '../api/client'
+import { useBudget } from '../budget/BudgetContext'
 
 export default function SettingsView() {
+  const { refresh: refreshBudget } = useBudget()
   const [catherineRatio, setCatherineRatio] = useState(0.5)
   const [jadeRatio, setJadeRatio] = useState(0.5)
   const [isLoading, setIsLoading] = useState(true)
@@ -49,6 +51,7 @@ export default function SettingsView() {
       setCatherineRatio(updated.catherine_ratio)
       setJadeRatio(1 - updated.catherine_ratio)
       setSaved(true)
+      void refreshBudget()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to save settings.')
     } finally {

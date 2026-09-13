@@ -48,7 +48,7 @@ function PlannedCell({
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
   const [saving, setSaving] = useState(false)
-  const [choice, setChoice] = useState<'template' | 'override' | null>(null)
+  const [choice, setChoice] = useState<'ask' | null>(null)
   const isCurrentMonth = selectedMonth === currentMonth()
 
   function startEdit() {

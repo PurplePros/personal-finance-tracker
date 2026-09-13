@@ -3,6 +3,7 @@ import type { CategoryTaxonomy } from '../api/types'
 import type { AvgDailyPoint, DailyPoint, MajorCategoryBreakdown, SpendingTransactionRow } from './deriveSpending'
 import { deriveSpending } from './deriveSpending'
 import { useSpending } from './SpendingContext'
+import commentIcon from '../assets/comment.png'
 
 const cadCurrency = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' })
 
@@ -549,23 +550,15 @@ function PencilIcon() {
 }
 
 // --- Speech bubble icon ---
+// Icon by Magnific via Flaticon (https://www.flaticon.com/free-icons/comments)
 
 function SpeechBubbleIcon({ filled }: { filled: boolean }) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill={filled ? 'currentColor' : 'none'}
-      stroke="currentColor"
-      strokeWidth={filled ? 0 : 1.8}
+    <img
+      src={commentIcon}
       aria-hidden
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.068.157 2.148.279 3.238.364.466.037.893.281 1.153.671L12 21l2.652-3.978c.26-.39.687-.634 1.153-.671 1.09-.085 2.17-.207 3.238-.364 1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"
-      />
-    </svg>
+      style={{ opacity: filled ? 1 : 0.3, width: '1em', height: '1em' }}
+    />
   )
 }
 
@@ -582,9 +575,11 @@ function NoteEditor({
 }) {
   const [value, setValue] = useState(row.note ?? '')
   const [saving, setSaving] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  // Tracks whether save was triggered by Enter so the blur handler can skip it.
+  const committedRef = useRef(false)
 
   async function save() {
+    if (saving) return
     setSaving(true)
     try {
       await onSave(row.id, value.trim() === '' ? null : value.trim())
@@ -595,20 +590,30 @@ function NoteEditor({
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') void save()
-    if (e.key === 'Escape') onClose()
+    if (e.key === 'Enter') {
+      committedRef.current = true
+      void save()
+    }
+    if (e.key === 'Escape') {
+      committedRef.current = true
+      onClose()
+    }
+  }
+
+  function handleBlur() {
+    if (committedRef.current) return
+    void save()
   }
 
   return (
     <div className="note-editor">
       <input
-        ref={inputRef}
         autoFocus
         className="note-input"
         value={value}
         disabled={saving}
         onChange={(e) => setValue(e.target.value)}
-        onBlur={() => void save()}
+        onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         placeholder="Add a note…"
         aria-label="Transaction note"
