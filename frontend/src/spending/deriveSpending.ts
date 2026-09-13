@@ -17,6 +17,7 @@ export interface SpendingTransactionRow {
   isSpending: boolean
   isLowConfidence: boolean
   isManualEdit: boolean
+  note: string | null
 }
 
 export interface DayGroup {
@@ -73,6 +74,7 @@ function toRow(txn: Transaction): SpendingTransactionRow {
     isSpending: txn.is_spending,
     isLowConfidence: txn.category_source === 'plaid_low_confidence',
     isManualEdit: txn.category_source === 'user',
+    note: txn.note,
   }
 }
 

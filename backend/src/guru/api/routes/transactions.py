@@ -1,28 +1,19 @@
 import datetime
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlmodel import Session
 
 from guru.api.dependencies import get_session
 from guru.api.models import UserCategory
 from guru.api.services.transaction_service import (
+    _UNSET,
     InvalidCategoryError,
     list_transactions,
-    patch_transaction_category,
+    patch_transaction,
 )
 
 router = APIRouter(prefix="/api/transactions")
-
-
-class _CategoryIn(BaseModel):
-    major: str
-    subcategory: str
-
-
-class _TransactionPatchBody(BaseModel):
-    category: _CategoryIn | None
 
 
 @router.get("")
@@ -38,17 +29,29 @@ def list(
 @router.patch("/{txn_id}")
 def patch(
     txn_id: uuid.UUID,
-    body: _TransactionPatchBody,
+    body: dict = Body(...),
     session: Session = Depends(get_session),
 ):
-    """Set or clear the category override on a transaction."""
-    category = (
-        UserCategory(major=body.category.major, subcategory=body.category.subcategory)
-        if body.category is not None
-        else None
-    )
+    """Set or clear category/note on a transaction; omitted fields are unchanged."""
+    category = _UNSET
+    note = _UNSET
+
+    if "category" in body:
+        raw = body["category"]
+        if raw is None:
+            category = None
+        else:
+            has_major = isinstance(raw, dict) and "major" in raw
+            has_sub = isinstance(raw, dict) and "subcategory" in raw
+            if not has_major or not has_sub:
+                raise HTTPException(status_code=422, detail="Invalid category payload")
+            category = UserCategory(major=raw["major"], subcategory=raw["subcategory"])
+
+    if "note" in body:
+        note = body["note"]  # str | None
+
     try:
-        result = patch_transaction_category(session, txn_id, category)
+        result = patch_transaction(session, txn_id, category=category, note=note)
     except InvalidCategoryError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 

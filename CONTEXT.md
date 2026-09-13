@@ -1,8 +1,10 @@
 # Guru — Domain Glossary
 
-Guru is a local, single-user personal finance tracker. It links financial
+Guru is a household personal finance tracker for two holders. It links financial
 institutions via Plaid and shows a breakdown of accounts with total assets and
-liabilities, plus a breakdown of credit-card spending by category over time.
+liabilities, a breakdown of credit-card spending by category over time, and a
+Budget view that compares planned spending against actuals with a split-expense
+settlement for two holders.
 
 ## Terms
 
@@ -74,10 +76,12 @@ PATCH to assign them to the correct Category.
 
 ### Category / Subcategory
 The classification a Transaction is filed under. A **major Category** (e.g. Food
-and drink, Shopping, Finances) contains **Subcategories** (e.g. Restaurants,
-Groceries and personal items). Every major Category has an **Other**
-Subcategory for things that belong to the major but to no specific Subcategory.
-The set of Categories is fixed, not user-defined.
+and personal items, Shopping, Housing) contains **Subcategories** (e.g.
+Restaurants, Groceries and personal items, Mortgage). Every major Category has
+an **Other** Subcategory for things that belong to the major but to no specific
+Subcategory. The set of Categories is fixed, not user-defined. Housing includes
+a "Condo and maintenance fees" Subcategory for strata/condo fees distinct from
+mortgage, insurance, and property taxes.
 
 ### Effective Category
 The Category actually displayed for a Transaction, resolved by the first source
@@ -114,3 +118,56 @@ rather than staying in Other.
 A payroll deposit or other direct-deposit inflow from an external source.
 Identified by Plaid's `INCOME` primary. Listed under `Finances > Income` but
 never counted in Spending - income is not a spending event.
+
+### Note
+A free-text annotation a holder adds to a specific Transaction (e.g. labelling
+what an e-Transfer was for). Optional; stored per-Transaction. Displayed in the
+Spending view as a collapsed speech-bubble icon that reveals the text on click;
+shown as a hover tooltip in the Budget view.
+
+## Holders
+
+### Holder
+The human who owns a set of Institutions and Accounts. Identified by a name
+string on `Institution.holder`. The app supports two holders sharing one
+instance. Each holder's Accounts are Plaid-linked independently; their
+Transactions are pooled together for Budget calculations.
+
+### Split Ratio
+The agreed percentage of household expenses each holder is responsible for.
+Configured in app settings; not per-transaction or per-category. Used only in
+Budget view settlement calculations.
+
+### Settlement
+The net amount one holder owes the other for a given month, derived from the
+Split Ratio and each holder's actual payments:
+
+  Jade's debt to Catherine = Split Ratio (Jade's %) × total Catherine paid
+  Catherine's debt to Jade  = Split Ratio (Catherine's %) × total Jade paid
+  Net = Jade's debt - Catherine's debt
+  (positive → Jade owes Catherine; negative → Catherine owes Jade)
+
+Calculated per selected month only; there is no running cumulative tab.
+
+## Budget
+
+### Budget Item
+One row in the Budget view. A Budget Item corresponds to one **major Category**
+from the spending taxonomy (e.g. Housing, Fun money). It carries a Planned
+Amount and derives its Actual Amount from all Spending in that major Category for
+the selected month. The `Finances` major is excluded - transfers and bank fees
+are not budgeted. Expanding a Budget Item reveals its subcategory breakdown.
+
+### Planned Amount
+The spending target set for a Budget Item. Stored as a global template (one
+value per major Category); can be overridden for a specific month. Edited inline
+in the Budget view.
+
+### Actual Amount
+The sum of all Spending transactions in a Budget Item's major Category for the
+selected month, pooled across both holders' Accounts.
+
+### Budget View
+A monthly ledger showing every budgeted major Category with its Planned and
+Actual Amounts, a subcategory breakdown on expand, and a Settlement summary at
+the bottom. Navigated by month picker identical to the Spending view.

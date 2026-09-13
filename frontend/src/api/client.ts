@@ -1,4 +1,4 @@
-import type { Account, CategoryTaxonomy, Institution, SyncResult, Transaction } from './types'
+import type { Account, AppSettings, BudgetPlanEntry, CategoryTaxonomy, Institution, SyncResult, Transaction } from './types'
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init)
@@ -74,5 +74,58 @@ export async function patchTransactionCategory(
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ category }),
+  })
+}
+
+export async function patchTransactionNote(
+  txnId: string,
+  note: string | null,
+): Promise<Transaction> {
+  return requestJson<Transaction>(`/api/transactions/${txnId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note }),
+  })
+}
+
+export async function fetchBudgetPlan(): Promise<BudgetPlanEntry[]> {
+  return requestJson<BudgetPlanEntry[]>('/api/budget/plan')
+}
+
+export async function putBudgetTemplate(
+  major: string,
+  plannedCents: number,
+): Promise<BudgetPlanEntry> {
+  return requestJson<BudgetPlanEntry>(`/api/budget/plan/${encodeURIComponent(major)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ planned_cents: plannedCents }),
+  })
+}
+
+export async function putBudgetOverride(
+  major: string,
+  month: string,
+  plannedCents: number,
+): Promise<BudgetPlanEntry> {
+  return requestJson<BudgetPlanEntry>(
+    `/api/budget/plan/${encodeURIComponent(major)}/${month}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ planned_cents: plannedCents }),
+    },
+  )
+}
+
+export async function fetchSettings(): Promise<AppSettings> {
+  return requestJson<AppSettings>('/api/settings')
+}
+
+export async function patchSettings(catherineRatio: number): Promise<AppSettings> {
+  return requestJson<AppSettings>('/api/settings', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ catherine_ratio: catherineRatio }),
   })
 }

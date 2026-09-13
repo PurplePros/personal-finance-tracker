@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { CategoryTaxonomy } from '../api/types'
 import type { AvgDailyPoint, DailyPoint, MajorCategoryBreakdown, SpendingTransactionRow } from './deriveSpending'
 import { deriveSpending } from './deriveSpending'
 import { useSpending } from './SpendingContext'
+import commentIcon from '../assets/comment.png'
 
 const cadCurrency = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' })
 
@@ -445,12 +446,16 @@ function TransactionRow({
   categories,
   isEditing,
   onPatch,
+  onPatchNote,
 }: {
   row: SpendingTransactionRow
   categories: CategoryTaxonomy[]
   isEditing: boolean
   onPatch: (txnId: string, category: { major: string; subcategory: string } | null) => Promise<void>
+  onPatchNote: (txnId: string, note: string | null) => Promise<void>
 }) {
+  const [isEditingNote, setIsEditingNote] = useState(false)
+
   return (
     <li className="txn-row">
       <span className="txn-icon" aria-label={row.category.major}>
@@ -460,6 +465,16 @@ function TransactionRow({
         <div className="txn-merchant">{row.name ?? row.merchantName ?? 'Unknown'}</div>
         {row.category.subcategory && (
           <div className="txn-subcategory">{row.category.subcategory}</div>
+        )}
+        {row.note && !isEditingNote && (
+          <div className="txn-note">{row.note}</div>
+        )}
+        {isEditingNote && (
+          <NoteEditor
+            row={row}
+            onSave={onPatchNote}
+            onClose={() => setIsEditingNote(false)}
+          />
         )}
         <div className="txn-meta">
           {row.pending && <span className="badge badge-pending">Pending</span>}
@@ -473,6 +488,14 @@ function TransactionRow({
             ? `−${formatAmount(-row.amount)}`
             : formatAmount(row.amount)}
         </span>
+        <button
+          className={`txn-note-btn ${row.note ? 'txn-note-btn--active' : 'txn-note-btn--dim'}`}
+          type="button"
+          aria-label={row.note ? 'Edit note' : 'Add note'}
+          onClick={() => setIsEditingNote((v) => !v)}
+        >
+          <SpeechBubbleIcon filled={!!row.note} />
+        </button>
         {isEditing && <CategoryPicker row={row} categories={categories} onPatch={onPatch} />}
       </div>
     </li>
@@ -487,19 +510,28 @@ function DayGroup({
   categories,
   isEditing,
   onPatch,
+  onPatchNote,
 }: {
   date: string
   transactions: SpendingTransactionRow[]
   categories: CategoryTaxonomy[]
   isEditing: boolean
   onPatch: (txnId: string, category: { major: string; subcategory: string } | null) => Promise<void>
+  onPatchNote: (txnId: string, note: string | null) => Promise<void>
 }) {
   return (
     <section className="day-group">
       <h3 className="day-group-header">{formatDateLabel(date)}</h3>
       <ul className="txn-list">
         {transactions.map((row) => (
-          <TransactionRow key={row.id} row={row} categories={categories} isEditing={isEditing} onPatch={onPatch} />
+          <TransactionRow
+            key={row.id}
+            row={row}
+            categories={categories}
+            isEditing={isEditing}
+            onPatch={onPatch}
+            onPatchNote={onPatchNote}
+          />
         ))}
       </ul>
     </section>
@@ -517,11 +549,83 @@ function PencilIcon() {
   )
 }
 
+// --- Speech bubble icon ---
+// Icon by Magnific via Flaticon (https://www.flaticon.com/free-icons/comments)
+
+function SpeechBubbleIcon({ filled }: { filled: boolean }) {
+  return (
+    <img
+      src={commentIcon}
+      aria-hidden
+      style={{ opacity: filled ? 1 : 0.3, width: '1em', height: '1em' }}
+    />
+  )
+}
+
+// --- Inline note editor ---
+
+function NoteEditor({
+  row,
+  onSave,
+  onClose,
+}: {
+  row: SpendingTransactionRow
+  onSave: (txnId: string, note: string | null) => Promise<void>
+  onClose: () => void
+}) {
+  const [value, setValue] = useState(row.note ?? '')
+  const [saving, setSaving] = useState(false)
+  // Tracks whether save was triggered by Enter so the blur handler can skip it.
+  const committedRef = useRef(false)
+
+  async function save() {
+    if (saving) return
+    setSaving(true)
+    try {
+      await onSave(row.id, value.trim() === '' ? null : value.trim())
+      onClose()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') {
+      committedRef.current = true
+      void save()
+    }
+    if (e.key === 'Escape') {
+      committedRef.current = true
+      onClose()
+    }
+  }
+
+  function handleBlur() {
+    if (committedRef.current) return
+    void save()
+  }
+
+  return (
+    <div className="note-editor">
+      <input
+        autoFocus
+        className="note-input"
+        value={value}
+        disabled={saving}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        placeholder="Add a note…"
+        aria-label="Transaction note"
+      />
+    </div>
+  )
+}
+
 // --- Main View ---
 
 export default function SpendingView() {
-  const { transactions, categories, isLoading, error } = useSpending()
-  const { patchCategory } = useSpending()
+  const { transactions, categories, isLoading, error, patchCategory, patchNote } = useSpending()
 
   const months = lastTwelveMonths()
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -605,6 +709,7 @@ export default function SpendingView() {
               categories={categories}
               isEditing={isEditing}
               onPatch={patchCategory}
+              onPatchNote={patchNote}
             />
           ))}
         </section>

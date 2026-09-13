@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { fetchSpendingData, patchTransactionCategory } from '../api/client'
+import { fetchSpendingData, patchTransactionCategory, patchTransactionNote } from '../api/client'
 import type { CategoryTaxonomy, Transaction } from '../api/types'
 
 export interface SpendingContextValue {
@@ -9,6 +9,7 @@ export interface SpendingContextValue {
   error: string | null
   refresh: () => Promise<void>
   patchCategory: (txnId: string, category: { major: string; subcategory: string } | null) => Promise<void>
+  patchNote: (txnId: string, note: string | null) => Promise<void>
 }
 
 const SpendingContext = createContext<SpendingContextValue | null>(null)
@@ -46,14 +47,18 @@ export function SpendingProvider({ children }: { children: React.ReactNode }) {
   const patchCategory = useCallback(
     async (txnId: string, category: { major: string; subcategory: string } | null) => {
       const updated = await patchTransactionCategory(txnId, category)
-      // Only update state on success; a thrown error leaves the previous state intact.
       setTransactions((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
     },
     [],
   )
 
+  const patchNote = useCallback(async (txnId: string, note: string | null) => {
+    const updated = await patchTransactionNote(txnId, note)
+    setTransactions((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
+  }, [])
+
   return (
-    <SpendingContext value={{ transactions, categories, isLoading, error, refresh, patchCategory }}>
+    <SpendingContext value={{ transactions, categories, isLoading, error, refresh, patchCategory, patchNote }}>
       {children}
     </SpendingContext>
   )

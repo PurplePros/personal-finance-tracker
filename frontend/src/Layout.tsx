@@ -32,6 +32,8 @@ export default function Layout() {
       <nav className="app-nav" aria-label="Views">
         <NavLink className="nav-tab" to="/accounts">Accounts</NavLink>
         <NavLink className="nav-tab" to="/spending">Spending</NavLink>
+        <NavLink className="nav-tab" to="/budget">Budget</NavLink>
+        <NavLink className="nav-tab" to="/settings">Settings</NavLink>
       </nav>
 
       <main className="app-shell">

@@ -13,36 +13,42 @@ export const SEP_GROCERIES: Transaction = {
   id: 'txn-sep-groc',
   account_id: 'acc-cc',
   date: '2026-09-02',
+  name: 'LOBLAWS #1234',
   merchant_name: 'Loblaws',
   amount: 8_500,
   pending: false,
   category: { major: 'Food and personal items', subcategory: 'Groceries and personal items' },
   category_source: 'plaid',
   is_spending: true,
+  note: null,
 }
 
 export const SEP_RESTAURANT: Transaction = {
   id: 'txn-sep-rest',
   account_id: 'acc-cc',
   date: '2026-09-05',
+  name: 'TERRONI',
   merchant_name: 'Terroni',
   amount: 6_000,
   pending: false,
   category: { major: 'Food and personal items', subcategory: 'Restaurants' },
   category_source: 'plaid_low_confidence',
   is_spending: true,
+  note: null,
 }
 
 export const SEP_CLOTHING: Transaction = {
   id: 'txn-sep-clothing',
   account_id: 'acc-cc',
   date: '2026-09-10',
+  name: 'SSENSE',
   merchant_name: 'SSENSE',
   amount: 25_000,
   pending: false,
   category: { major: 'Shopping', subcategory: 'Clothing' },
   category_source: 'user',
   is_spending: true,
+  note: null,
 }
 
 // Refund in September (negative amount, is_spending: true - it nets the total)
@@ -50,12 +56,14 @@ export const SEP_REFUND: Transaction = {
   id: 'txn-sep-refund',
   account_id: 'acc-cc',
   date: '2026-09-12',
+  name: 'SSENSE RETURN',
   merchant_name: 'SSENSE',
   amount: -5_000,
   pending: false,
   category: { major: 'Shopping', subcategory: 'Clothing' },
   category_source: 'user',
   is_spending: true,
+  note: null,
 }
 
 // Transfer in September (is_spending: false) - excluded from totals/breakdown, present in list
@@ -63,12 +71,14 @@ export const SEP_TRANSFER: Transaction = {
   id: 'txn-sep-transfer',
   account_id: 'acc-cc',
   date: '2026-09-15',
+  name: 'TRANSFER',
   merchant_name: 'TD Bank',
   amount: 100_000,
   pending: false,
   category: { major: 'Finances', subcategory: 'Transfers' },
   category_source: 'plaid',
   is_spending: false,
+  note: null,
 }
 
 // August 2026 - for 3-month average
@@ -76,24 +86,28 @@ export const AUG_GROCERIES: Transaction = {
   id: 'txn-aug-groc',
   account_id: 'acc-cc',
   date: '2026-08-02',
+  name: 'LOBLAWS #1234',
   merchant_name: 'Loblaws',
   amount: 9_000,
   pending: false,
   category: { major: 'Food and personal items', subcategory: 'Groceries and personal items' },
   category_source: 'plaid',
   is_spending: true,
+  note: null,
 }
 
 export const AUG_RESTAURANT: Transaction = {
   id: 'txn-aug-rest',
   account_id: 'acc-cc',
   date: '2026-08-10',
+  name: 'BAR ISABEL',
   merchant_name: 'Bar Isabel',
   amount: 7_500,
   pending: false,
   category: { major: 'Food and personal items', subcategory: 'Restaurants' },
   category_source: 'plaid',
   is_spending: true,
+  note: null,
 }
 
 // July 2026 - for 3-month average
@@ -101,24 +115,28 @@ export const JUL_GROCERIES: Transaction = {
   id: 'txn-jul-groc',
   account_id: 'acc-cc',
   date: '2026-07-03',
+  name: 'LOBLAWS #1234',
   merchant_name: 'Loblaws',
   amount: 8_000,
   pending: false,
   category: { major: 'Food and personal items', subcategory: 'Groceries and personal items' },
   category_source: 'plaid',
   is_spending: true,
+  note: null,
 }
 
 export const JUL_TRANSFER: Transaction = {
   id: 'txn-jul-transfer',
   account_id: 'acc-cc',
   date: '2026-07-05',
+  name: 'TRANSFER',
   merchant_name: 'TD Bank',
   amount: 50_000,
   pending: false,
   category: { major: 'Finances', subcategory: 'Transfers' },
   category_source: 'plaid',
   is_spending: false,
+  note: null,
 }
 
 // June 2026 - for 3-month average
@@ -126,12 +144,14 @@ export const JUN_GROCERIES: Transaction = {
   id: 'txn-jun-groc',
   account_id: 'acc-cc',
   date: '2026-06-05',
+  name: 'LOBLAWS #1234',
   merchant_name: 'Loblaws',
   amount: 7_000,
   pending: false,
   category: { major: 'Food and personal items', subcategory: 'Groceries and personal items' },
   category_source: 'plaid',
   is_spending: true,
+  note: null,
 }
 
 // October 2026 - should be excluded when selected month is September
@@ -139,12 +159,14 @@ export const OCT_GROCERIES: Transaction = {
   id: 'txn-oct-groc',
   account_id: 'acc-cc',
   date: '2026-10-01',
+  name: 'LOBLAWS #1234',
   merchant_name: 'Loblaws',
   amount: 10_000,
   pending: false,
   category: { major: 'Food and personal items', subcategory: 'Groceries and personal items' },
   category_source: 'plaid',
   is_spending: true,
+  note: null,
 }
 
 /** All transactions in the reference fixture. */

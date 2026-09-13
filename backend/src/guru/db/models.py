@@ -3,7 +3,7 @@ import uuid
 from decimal import Decimal
 
 from pydantic import field_serializer
-from sqlalchemy import CheckConstraint, Index
+from sqlalchemy import CheckConstraint, Index, text
 from sqlalchemy.orm import declared_attr
 from sqlmodel import Field, SQLModel
 
@@ -164,6 +164,9 @@ class Transaction(BaseSQLModel, table=True):
     user_category_subcategory: str | None = Field(
         default=None, description="Holder's manual Subcategory override"
     )
+    note: str | None = Field(
+        default=None, description="Free-text annotation added by the holder"
+    )
 
     @property
     def pfc_signal(self) -> PlaidPFCSignal:
@@ -180,3 +183,48 @@ class Transaction(BaseSQLModel, table=True):
         if self.user_category_major is None or self.user_category_subcategory is None:
             return None
         return UserCategory(self.user_category_major, self.user_category_subcategory)
+
+
+class BudgetPlan(BaseSQLModel, table=True):
+    """A planned spending amount for a major category.
+
+    When ``month`` is None, the row is the global template that applies to any
+    month without an explicit override. When ``month`` is set (ISO YYYY-MM), the
+    row overrides the template for exactly that month. The unique constraint
+    prevents duplicate (major, month) pairs.
+    """
+
+    __tablename__ = "budget_plan"  # type: ignore[assignment]
+    __table_args__ = (
+        # Enforces uniqueness for month-specific overrides (month IS NOT NULL).
+        # SQLite treats NULL != NULL in UNIQUE constraints, so this index alone
+        # would not prevent two template rows for the same major. The service
+        # layer's SELECT-then-upsert pattern guards the template slot instead.
+        Index(
+            "uq_budget_plan_major_month",
+            "major",
+            "month",
+            unique=True,
+            sqlite_where=text("month IS NOT NULL"),
+        ),
+    )
+
+    major: str = Field(min_length=1, description="Major spending category name")
+    month: str | None = Field(
+        default=None,
+        description="ISO YYYY-MM for a month-specific override, or null for the template",  # noqa: E501
+    )
+    planned_cents: int = Field(description="Planned amount in cents (CAD)")
+
+
+class AppSettings(SQLModel, table=True):
+    """Key-value store for application-level settings.
+
+    Intentionally minimal: no audit timestamps, no UUID PK, because there are
+    only a handful of well-known keys and they are never deleted.
+    """
+
+    __tablename__ = "app_settings"  # type: ignore[assignment]
+
+    key: str = Field(primary_key=True, description="Setting key")
+    value: str = Field(description="Setting value (serialized as text)")
