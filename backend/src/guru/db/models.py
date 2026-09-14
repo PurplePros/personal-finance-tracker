@@ -41,13 +41,19 @@ class BaseSQLModel(SQLModel):
 
 
 class Institution(BaseSQLModel, table=True):
-    """A linked financial institution storing its Plaid credentials."""
+    """A financial institution. Two kinds: Plaid-linked (has plaid_access_token)
+    and Manual (plaid_access_token is None). Manual institutions are created by
+    the holder in Settings for providers Plaid doesn't support; their transactions
+    are entered by hand (see ADR 0002).
+    """
 
     name: str = Field(min_length=1, description="Display name of the institution")
-    plaid_access_token: str = Field(
-        min_length=1, description="Plaid API access token for this institution"
+    plaid_access_token: str | None = Field(
+        default=None, description="Plaid API access token; None for manual institutions"
     )
-    plaid_id: str = Field(min_length=1, description="Plaid institution ID")
+    plaid_id: str | None = Field(
+        default=None, description="Plaid institution ID; None for manual institutions"
+    )
     # item_id returned by Plaid on token exchange; used to re-authenticate
     # (update mode) when a token breaks.
     plaid_item_id: str | None = Field(
@@ -59,6 +65,10 @@ class Institution(BaseSQLModel, table=True):
         default=None, description="Plaid transactions sync cursor for delta fetches"
     )
 
+    @property
+    def is_manual(self) -> bool:
+        return self.plaid_access_token is None
+
 
 class Account(BaseSQLModel, table=True):
     """A financial account belonging to a linked institution."""
@@ -68,7 +78,9 @@ class Account(BaseSQLModel, table=True):
         foreign_key="institution.id",
         description="Foreign key to the parent Institution",
     )
-    plaid_id: str = Field(description="Plaid account ID")
+    plaid_id: str | None = Field(
+        default=None, description="Plaid account ID; None for Manual accounts"
+    )
     type: AccountType = Field(description="Coarse account type (see AccountType)")
     balance: Decimal = Field(
         max_digits=20,
@@ -117,9 +129,12 @@ class Transaction(BaseSQLModel, table=True):
         foreign_key="account.id",
         description="Credit Card or Chequing Account this transaction belongs to",
     )
-    plaid_transaction_id: str = Field(
+    # Null for manual transactions (no Plaid source). SQLite UNIQUE allows
+    # multiple NULLs (NULL != NULL), so manual transactions don't collide.
+    plaid_transaction_id: str | None = Field(
+        default=None,
         unique=True,
-        description="Plaid transaction ID; used as the upsert key on sync",
+        description="Plaid transaction ID; null for manual transactions",
     )
     # Links a posted transaction back to the pending one it replaced.
     pending_transaction_id: str | None = Field(

@@ -1,10 +1,11 @@
 import datetime
 import uuid
+from decimal import Decimal
 
 from sqlmodel import Session, col, select
 
 from guru.api.categorization import ResolvedCategory, validate_user_category
-from guru.api.models import SPENDING_ACCOUNT_TYPES, UserCategory
+from guru.api.models import SPENDING_ACCOUNT_TYPES, AccountType, UserCategory
 from guru.db.models import Account, Transaction
 
 # First Sync backfills roughly 13 months; the read endpoint defaults to the
@@ -23,16 +24,15 @@ def list_transactions(
     start: datetime.date | None = None,
     end: datetime.date | None = None,
 ) -> list[dict]:
-    """Return CAD Credit Card and Chequing transactions in [start, end], newest first.
+    """Return CAD spending transactions in [start, end], newest first.
 
-    Defaults to the last ~13 months. Savings and Investment accounts are excluded.
+    Includes Credit Card, Chequing, and Manual accounts. Savings and Investment
+    accounts are excluded. Defaults to the last ~13 months.
     """
     default_start, default_end = _default_range()
     start = start or default_start
     end = end or default_end
 
-    # Join to Account (via the FK) to filter to CAD Credit Card and Chequing accounts.
-    # The join condition is inferred from Transaction.account_id -> account.id.
     rows = session.exec(
         select(Transaction)
         .join(Account)
@@ -50,6 +50,10 @@ def list_transactions(
 
 class InvalidCategoryError(ValueError):
     """Raised when a category (major, subcategory) pair is not in the taxonomy."""
+
+
+class NotManualTransactionError(ValueError):
+    """Raised when a mutating operation targets a Plaid (non-manual) transaction."""
 
 
 _UNSET = object()
@@ -108,12 +112,109 @@ def patch_transaction_category(
     return patch_transaction(session, txn_id, category=category)
 
 
+def create_manual_transaction(
+    session: Session,
+    account_id: uuid.UUID,
+    name: str,
+    amount_cents: int,
+    date: datetime.date,
+    category: UserCategory,
+    note: str | None = None,
+) -> dict:
+    """Create a manual transaction on a Manual-type account.
+
+    amount_cents follows Plaid sign: positive = outflow (spending), negative = inflow.
+    category is required - manual transactions have no Plaid signals to fall back on.
+    Raises ValueError if account_id is not a Manual account or category is invalid.
+    """
+    account = session.get(Account, account_id)
+    if account is None or account.type != AccountType.MANUAL:
+        raise NotManualTransactionError(f"account {account_id} is not a Manual account")
+
+    if not validate_user_category(category.major, category.subcategory):
+        raise InvalidCategoryError(
+            f"Category ({category.major!r}, {category.subcategory!r}) not in taxonomy"
+        )
+
+    txn = Transaction(
+        account_id=account_id,
+        name=name,
+        amount=Decimal(amount_cents) / 100,
+        date=date,
+        pending=False,
+        user_category_major=category.major,
+        user_category_subcategory=category.subcategory,
+        note=note or None,
+    )
+    session.add(txn)
+    session.commit()
+    session.refresh(txn)
+    return _serialize(txn)
+
+
+def update_manual_transaction(
+    session: Session,
+    txn_id: uuid.UUID,
+    name: str,
+    amount_cents: int,
+    date: datetime.date,
+    category: UserCategory,
+    note: str | None = None,
+) -> dict | None:
+    """Replace all mutable fields on a manual transaction.
+
+    Returns the updated transaction dict, None if not found.
+    Raises NotManualTransactionError if txn_id refers to a Plaid transaction.
+    Raises InvalidCategoryError if the category is not in the taxonomy.
+    """
+    txn = session.get(Transaction, txn_id)
+    if txn is None:
+        return None
+    if txn.plaid_transaction_id is not None:
+        raise NotManualTransactionError(
+            f"Transaction {txn_id} is a Plaid transaction and cannot be fully edited"
+        )
+    if not validate_user_category(category.major, category.subcategory):
+        raise InvalidCategoryError(
+            f"Category ({category.major!r}, {category.subcategory!r}) not in taxonomy"
+        )
+
+    txn.name = name
+    txn.amount = Decimal(amount_cents) / 100
+    txn.date = date
+    txn.user_category_major = category.major
+    txn.user_category_subcategory = category.subcategory
+    txn.note = note or None
+    session.commit()
+    session.refresh(txn)
+    return _serialize(txn)
+
+
+def delete_manual_transaction(session: Session, txn_id: uuid.UUID) -> bool:
+    """Delete a manual transaction.
+
+    Returns True on success, False if not found.
+    Raises NotManualTransactionError if txn_id refers to a Plaid transaction.
+    """
+    txn = session.get(Transaction, txn_id)
+    if txn is None:
+        return False
+    if txn.plaid_transaction_id is not None:
+        raise NotManualTransactionError(
+            f"Transaction {txn_id} is a Plaid transaction and cannot be deleted"
+        )
+    session.delete(txn)
+    session.commit()
+    return True
+
+
 def _serialize(txn: Transaction) -> dict:
     """Shape a Transaction into the API contract.
 
     Amount is emitted as signed integer cents. The Effective Category, its
     source, and is_spending are resolved on read from the stored Plaid signals
-    and any manual override (ADR 0001).
+    and any manual override (ADR 0001). is_manual is True when plaid_transaction_id
+    is None (the transaction was entered by hand, not synced from Plaid).
     """
     category = ResolvedCategory.resolve(txn.user_category, txn.pfc_signal)
     return {
@@ -124,6 +225,7 @@ def _serialize(txn: Transaction) -> dict:
         "merchant_name": txn.merchant_name,
         "amount": int(txn.amount * 100),
         "pending": txn.pending,
+        "is_manual": txn.plaid_transaction_id is None,
         "category": {
             "major": category.major,
             "subcategory": category.subcategory,

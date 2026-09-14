@@ -7,6 +7,7 @@ export const WEALTHSIMPLE: Institution = {
   plaid_id: 'plaid-inst-ws',
   plaid_item_id: null,
   holder: 'Catherine',
+  is_manual: false,
 }
 
 export const TANGERINE: Institution = {
@@ -15,6 +16,7 @@ export const TANGERINE: Institution = {
   plaid_id: 'plaid-inst-tg',
   plaid_item_id: null,
   holder: 'Catherine',
+  is_manual: false,
 }
 
 export const institutions: Institution[] = [WEALTHSIMPLE, TANGERINE]

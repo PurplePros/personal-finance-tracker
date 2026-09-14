@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { createLinkToken, exchangeToken, fetchDashboardData, syncAccounts } from '../api/client'
-import type { Institution, SyncResult } from '../api/types'
+import type { Account, Institution, SyncResult } from '../api/types'
 import { deriveDashboard, type DashboardViewModel } from '../dashboard/deriveDashboard'
 import { createOrchestrator, selectReconnectPrompts } from '../dashboard/orchestrate'
 
@@ -67,6 +67,8 @@ const REFRESH_INTERVAL_MS = 10 * 60 * 1000
 export interface AccountsContextValue {
   dashboard: DashboardViewModel | null
   institutions: Institution[]
+  /** All accounts, including Manual accounts excluded from the dashboard. */
+  accounts: Account[]
   reconnectPrompts: SyncResult[]
   status: string
   error: string | null
@@ -89,6 +91,7 @@ export function useAccounts(): AccountsContextValue {
 export function AccountsProvider({ children }: { children: React.ReactNode }) {
   const [dashboard, setDashboard] = useState<DashboardViewModel | null>(null)
   const [institutions, setInstitutions] = useState<Institution[]>([])
+  const [accounts, setAccounts] = useState<Account[]>([])
   const [status, setStatus] = useState('Loading accounts…')
   const [error, setError] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -102,9 +105,10 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
   const reconnectInFlight = useRef<Promise<void> | null>(null)
 
   const applyOutcome = useCallback(
-    (outcome: { dashboard: DashboardViewModel; institutions: Institution[]; results: SyncResult[] }) => {
+    (outcome: { dashboard: DashboardViewModel; institutions: Institution[]; accounts: Account[]; results: SyncResult[] }) => {
       setDashboard(outcome.dashboard)
       setInstitutions(outcome.institutions)
+      setAccounts(outcome.accounts)
       setReconnectPrompts(selectReconnectPrompts(outcome.results))
       setStatus(nowFormatted())
     },
@@ -132,6 +136,7 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
         const data = await fetchDashboardData()
         if (!isCurrent) return
         setInstitutions(data.institutions)
+        setAccounts(data.accounts)
         if (data.accounts.length === 0) {
           setStatus('Finding your accounts…')
           const outcome = await orchestratorRef.current.run()
@@ -223,6 +228,7 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
     <AccountsContext value={{
       dashboard,
       institutions,
+      accounts,
       reconnectPrompts,
       status,
       error,

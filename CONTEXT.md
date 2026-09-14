@@ -9,9 +9,14 @@ settlement for two holders.
 ## Terms
 
 ### Institution
-A linked financial provider (e.g. Wealthsimple, Tangerine) whose accounts are
-pulled in via Plaid. Holds the Plaid access token used to fetch its accounts.
-An institution belongs to a **holder** (the human who owns the accounts).
+A financial provider whose accounts are tracked in Guru. Belongs to a
+**holder**. Two kinds:
+
+- **Plaid Institution**: linked via Plaid; holds an access token used to sync
+  accounts and transactions automatically.
+- **Manual Institution**: not Plaid-connected; created by the holder in
+  Settings to represent an unsupported provider (e.g. a bank Plaid doesn't
+  cover). Transactions are entered by hand. Has no Plaid credentials.
 
 ### Account
 A single financial account belonging to an Institution (e.g. a chequing
@@ -23,12 +28,15 @@ under one institution may share the same product name (e.g. two distinct TFSAs)
 ### Account Type
 A **coarse** classification of an Account, used only to reason about it
 structurally — not to encode the specific registered product. The set:
-`Chequing`, `Savings`, `Credit Card`, `Investment`. Registered accounts (RRSP,
-TFSA) are `Investment`; the specific product name is carried by `Account.name`,
-not by the type. Distinguishing RRSP vs TFSA is a tax concern, out of scope for
-asset/liability totals. The registered-product distinction is surfaced in the
-UI instead: within an institution, `Investment` accounts are shown under an
-Investments section, sub-grouped by their product name (from `Account.name`).
+`Chequing`, `Savings`, `Credit Card`, `Investment`, `Manual`. Registered
+accounts (RRSP, TFSA) are `Investment`; the specific product name is carried by
+`Account.name`, not by the type. Distinguishing RRSP vs TFSA is a tax concern,
+out of scope for asset/liability totals. The registered-product distinction is
+surfaced in the UI instead: within an institution, `Investment` accounts are
+shown under an Investments section, sub-grouped by their product name (from
+`Account.name`). `Manual` accounts belong to Manual Institutions; they carry no
+real balance, are excluded from net worth, and never appear in the Accounts
+view.
 
 ### Balance
 The **current** balance of an Account (Plaid `balances.current`), in the
@@ -61,10 +69,18 @@ Transactions for every Institution.
 ## Spending
 
 ### Transaction
-A single posted or pending money movement on an Account, pulled from Plaid (a
-purchase, refund, fee, cash withdrawal, e-Transfer, or payment). Belongs to one
-Account and carries a merchant name, amount, date, and pending flag. Credit Card
-and Chequing accounts surface Transactions; Savings and Investment accounts do not.
+A single money movement on an Account. Two kinds:
+
+- **Plaid Transaction**: pulled automatically from Plaid; posted or pending.
+  Belongs to a Credit Card or Chequing Account. Carries a Plaid transaction ID,
+  merchant name, amount, date, and pending flag.
+- **Manual Transaction**: entered by a holder against a Manual Account. Always
+  posted (never pending). Requires a category on creation. Fully editable and
+  deletable. Marked visually in the Spending view and in Budget subcategory rows
+  that include at least one manual transaction.
+
+Both kinds participate equally in Spending totals, Budget actuals, and
+Settlement calculations.
 
 ### Spending
 The net outflow over a period shown by the Spending view: purchases minus

@@ -1,4 +1,4 @@
-import type { Account, AppSettings, BudgetPlanEntry, CategoryTaxonomy, Institution, SyncResult, Transaction } from './types'
+import type { Account, AppSettings, BudgetPlanEntry, CategoryTaxonomy, Institution, ManualInstitution, SyncResult, Transaction } from './types'
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init)
@@ -116,6 +116,69 @@ export async function putBudgetOverride(
       body: JSON.stringify({ planned_cents: plannedCents }),
     },
   )
+}
+
+export async function fetchManualInstitutions(): Promise<ManualInstitution[]> {
+  const institutions = await requestJson<Institution[]>('/api/institutions')
+  return institutions
+    .filter((i) => i.is_manual)
+    .map((i) => ({ id: i.id, name: i.name, holder: i.holder, is_manual: true as const }))
+}
+
+export async function createManualInstitution(name: string, holder: string): Promise<ManualInstitution> {
+  return requestJson<ManualInstitution>('/api/institutions/manual', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, holder }),
+  })
+}
+
+export async function deleteManualInstitution(id: string): Promise<void> {
+  const response = await fetch(`/api/institutions/manual/${id}`, { method: 'DELETE' })
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({})) as { detail?: string }
+    throw new Error(body.detail ?? `Request failed with status ${response.status}`)
+  }
+}
+
+export async function createManualTransaction(payload: {
+  institution_id: string
+  name: string
+  amount_cents: number
+  date: string
+  category: { major: string; subcategory: string }
+  note?: string | null
+}): Promise<Transaction> {
+  return requestJson<Transaction>('/api/transactions/manual', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function updateManualTransaction(
+  txnId: string,
+  payload: {
+    name: string
+    amount_cents: number
+    date: string
+    category: { major: string; subcategory: string }
+    note?: string | null
+  },
+): Promise<Transaction> {
+  return requestJson<Transaction>(`/api/transactions/manual/${txnId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function deleteManualTransaction(txnId: string): Promise<void> {
+  const response = await fetch(`/api/transactions/manual/${txnId}`, { method: 'DELETE' })
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({})) as { detail?: string }
+    throw new Error(body.detail ?? `Request failed with status ${response.status}`)
+  }
 }
 
 export async function fetchSettings(): Promise<AppSettings> {

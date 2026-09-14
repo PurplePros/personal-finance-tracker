@@ -1,15 +1,44 @@
 import { useEffect, useState } from 'react'
-import { fetchSettings, patchSettings } from '../api/client'
+import {
+  createManualInstitution,
+  deleteManualInstitution,
+  fetchSettings,
+  patchSettings,
+} from '../api/client'
+import type { ManualInstitution } from '../api/types'
+import { useAccounts } from '../accounts/AccountsContext'
 import { useBudget } from '../budget/BudgetContext'
+
+const HOLDERS = ['Catherine', 'Jade'] as const
 
 export default function SettingsView() {
   const { refresh: refreshBudget } = useBudget()
+  const { institutions, refresh: refreshAccounts } = useAccounts()
+
+  // --- Split ratio ---
   const [catherineRatio, setCatherineRatio] = useState(0.5)
   const [jadeRatio, setJadeRatio] = useState(0.5)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+
+  // --- Manual institutions (local additions/deletions layered on top of AccountsContext state) ---
+  const [localAdded, setLocalAdded] = useState<ManualInstitution[]>([])
+  const [localDeleted, setLocalDeleted] = useState<Set<string>>(new Set())
+  const manualInstitutions: ManualInstitution[] = [
+    ...institutions
+      .filter((i) => i.is_manual && !localDeleted.has(i.id))
+      .map((i) => ({ id: i.id, name: i.name, holder: i.holder, is_manual: true as const })),
+    ...localAdded.filter((i) => !localDeleted.has(i.id)),
+  ].sort((a, b) => a.name.localeCompare(b.name))
+
+  const [addName, setAddName] = useState('')
+  const [addHolder, setAddHolder] = useState<typeof HOLDERS[number]>('Catherine')
+  const [addError, setAddError] = useState<string | null>(null)
+  const [isAdding, setIsAdding] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchSettings()
@@ -59,6 +88,38 @@ export default function SettingsView() {
     }
   }
 
+  async function handleAddInstitution(e: React.FormEvent) {
+    e.preventDefault()
+    const name = addName.trim()
+    if (!name) return
+    setIsAdding(true)
+    setAddError(null)
+    try {
+      const inst = await createManualInstitution(name, addHolder)
+      setLocalAdded((prev) => [...prev, inst])
+      setAddName('')
+      void refreshAccounts()
+    } catch (cause) {
+      setAddError(cause instanceof Error ? cause.message : 'Unable to add institution.')
+    } finally {
+      setIsAdding(false)
+    }
+  }
+
+  async function handleDelete(id: string) {
+    setDeletingId(id)
+    setDeleteError(null)
+    try {
+      await deleteManualInstitution(id)
+      setLocalDeleted((prev) => new Set([...prev, id]))
+      void refreshAccounts()
+    } catch (cause) {
+      setDeleteError(cause instanceof Error ? cause.message : 'Unable to delete institution.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   if (isLoading) return <div className="settings-view"><p>Loading settings…</p></div>
 
   return (
@@ -104,6 +165,68 @@ export default function SettingsView() {
 
           <button className="settings-save-btn" type="submit" disabled={isSaving}>
             {isSaving ? 'Saving…' : 'Save'}
+          </button>
+        </form>
+      </section>
+
+      <section className="settings-section">
+        <h2 className="settings-subheading">Manual institutions</h2>
+        <p className="settings-description">
+          Add institutions that Plaid doesn't support. Transactions from these institutions are entered by hand in the Spending view.
+        </p>
+
+        {manualInstitutions.length > 0 && (
+          <ul className="manual-institutions-list">
+            {manualInstitutions.map((inst) => (
+              <li key={inst.id} className="manual-institution-row">
+                <span className="manual-institution-name">{inst.name}</span>
+                <span className="manual-institution-holder">{inst.holder}</span>
+                <button
+                  className="manual-institution-delete"
+                  type="button"
+                  disabled={deletingId === inst.id}
+                  onClick={() => void handleDelete(inst.id)}
+                  aria-label={`Remove ${inst.name}`}
+                >
+                  {deletingId === inst.id ? 'Removing…' : 'Remove'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {deleteError && <p className="settings-error" role="alert">{deleteError}</p>}
+
+        <form onSubmit={(e) => void handleAddInstitution(e)} className="settings-form settings-form--inline">
+          <div className="settings-field">
+            <label htmlFor="inst-name" className="settings-label">Name</label>
+            <input
+              id="inst-name"
+              type="text"
+              className="settings-input"
+              placeholder="e.g. BMO"
+              value={addName}
+              disabled={isAdding}
+              onChange={(e) => setAddName(e.target.value)}
+            />
+          </div>
+          <div className="settings-field">
+            <label htmlFor="inst-holder" className="settings-label">Holder</label>
+            <select
+              id="inst-holder"
+              className="settings-input"
+              value={addHolder}
+              disabled={isAdding}
+              onChange={(e) => setAddHolder(e.target.value as typeof HOLDERS[number])}
+            >
+              {HOLDERS.map((h) => <option key={h} value={h}>{h}</option>)}
+            </select>
+          </div>
+
+          {addError && <p className="settings-error" role="alert">{addError}</p>}
+
+          <button className="settings-save-btn" type="submit" disabled={isAdding || !addName.trim()}>
+            {isAdding ? 'Adding…' : 'Add institution'}
           </button>
         </form>
       </section>

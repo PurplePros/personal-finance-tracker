@@ -160,10 +160,12 @@ def _sync_transactions(
 
 
 def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
-    """Fetch accounts from Plaid for every institution and upsert them."""
+    """Fetch accounts from Plaid for every Plaid-linked institution and upsert them."""
     institutions = InstitutionRepository().list(session)
     results = []
     for institution in institutions:
+        if institution.is_manual:
+            continue
         try:
             plaid_accounts = plaid_service.list_accounts(institution.plaid_access_token)
         except Exception as e:

@@ -4,23 +4,23 @@ import type { BudgetPlanEntry, Transaction } from '../api/types'
 
 const MONTH = '2026-09'
 
-function txn(overrides: Partial<Transaction> & { account_id: string; amount: number; major: string; subcategory?: string | null; date?: string }): Transaction {
+function txn(opts: { account_id: string; amount: number; major: string; subcategory?: string | null; date?: string; is_spending?: boolean; is_manual?: boolean }): Transaction {
   return {
     id: `txn-${Math.random()}`,
-    account_id: overrides.account_id,
-    date: overrides.date ?? `${MONTH}-05`,
+    account_id: opts.account_id,
+    date: opts.date ?? `${MONTH}-05`,
     name: 'Test',
     merchant_name: null,
-    amount: overrides.amount,
+    amount: opts.amount,
     pending: false,
+    is_manual: opts.is_manual ?? false,
     category: {
-      major: overrides.major,
-      subcategory: overrides.subcategory ?? 'Other',
+      major: opts.major,
+      subcategory: opts.subcategory ?? 'Other',
     },
     category_source: 'plaid',
-    is_spending: overrides.is_spending ?? true,
+    is_spending: opts.is_spending ?? true,
     note: null,
-    ...overrides,
   }
 }
 
@@ -108,6 +108,40 @@ describe('deriveBudget', () => {
       expect(rows[0].major).toBe('Food and personal items')
       expect(rows[1].major).toBe('Shopping')
       expect(rows[rows.length - 1].major).toBe('Miscellaneous')
+    })
+  })
+
+  describe('has_manual flag on subcategory actuals', () => {
+    it('is false when no transactions in a subcategory are manual', () => {
+      const transactions = [
+        txn({ account_id: 'acc-1', amount: 5000, major: 'Food and personal items', subcategory: 'Groceries and personal items', is_manual: false }),
+      ]
+      const { rows } = deriveBudget(transactions, NO_PLAN, EQUAL_SPLIT, {}, MONTH)
+      const food = rows.find((r) => r.major === 'Food and personal items')!
+      const sub = food.subcategories.find((s) => s.subcategory === 'Groceries and personal items')!
+      expect(sub.has_manual).toBe(false)
+    })
+
+    it('is true when at least one transaction in a subcategory is manual', () => {
+      const transactions = [
+        txn({ account_id: 'acc-1', amount: 5000, major: 'Food and personal items', subcategory: 'Groceries and personal items', is_manual: false }),
+        txn({ account_id: 'acc-2', amount: 3000, major: 'Food and personal items', subcategory: 'Groceries and personal items', is_manual: true }),
+      ]
+      const { rows } = deriveBudget(transactions, NO_PLAN, EQUAL_SPLIT, {}, MONTH)
+      const food = rows.find((r) => r.major === 'Food and personal items')!
+      const sub = food.subcategories.find((s) => s.subcategory === 'Groceries and personal items')!
+      expect(sub.has_manual).toBe(true)
+    })
+
+    it('does not set has_manual on a subcategory that has only Plaid transactions', () => {
+      const transactions = [
+        txn({ account_id: 'acc-1', amount: 5000, major: 'Food and personal items', subcategory: 'Restaurants', is_manual: false }),
+        txn({ account_id: 'acc-2', amount: 3000, major: 'Food and personal items', subcategory: 'Groceries and personal items', is_manual: true }),
+      ]
+      const { rows } = deriveBudget(transactions, NO_PLAN, EQUAL_SPLIT, {}, MONTH)
+      const food = rows.find((r) => r.major === 'Food and personal items')!
+      const restaurants = food.subcategories.find((s) => s.subcategory === 'Restaurants')!
+      expect(restaurants.has_manual).toBe(false)
     })
   })
 

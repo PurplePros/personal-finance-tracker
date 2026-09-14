@@ -20,6 +20,7 @@ export const SEP_GROCERIES: Transaction = {
   category: { major: 'Food and personal items', subcategory: 'Groceries and personal items' },
   category_source: 'plaid',
   is_spending: true,
+  is_manual: false,
   note: null,
 }
 
@@ -34,6 +35,7 @@ export const SEP_RESTAURANT: Transaction = {
   category: { major: 'Food and personal items', subcategory: 'Restaurants' },
   category_source: 'plaid_low_confidence',
   is_spending: true,
+  is_manual: false,
   note: null,
 }
 
@@ -48,6 +50,7 @@ export const SEP_CLOTHING: Transaction = {
   category: { major: 'Shopping', subcategory: 'Clothing' },
   category_source: 'user',
   is_spending: true,
+  is_manual: false,
   note: null,
 }
 
@@ -63,6 +66,7 @@ export const SEP_REFUND: Transaction = {
   category: { major: 'Shopping', subcategory: 'Clothing' },
   category_source: 'user',
   is_spending: true,
+  is_manual: false,
   note: null,
 }
 
@@ -78,6 +82,7 @@ export const SEP_TRANSFER: Transaction = {
   category: { major: 'Finances', subcategory: 'Transfers' },
   category_source: 'plaid',
   is_spending: false,
+  is_manual: false,
   note: null,
 }
 
@@ -93,6 +98,7 @@ export const AUG_GROCERIES: Transaction = {
   category: { major: 'Food and personal items', subcategory: 'Groceries and personal items' },
   category_source: 'plaid',
   is_spending: true,
+  is_manual: false,
   note: null,
 }
 
@@ -107,6 +113,7 @@ export const AUG_RESTAURANT: Transaction = {
   category: { major: 'Food and personal items', subcategory: 'Restaurants' },
   category_source: 'plaid',
   is_spending: true,
+  is_manual: false,
   note: null,
 }
 
@@ -122,6 +129,7 @@ export const JUL_GROCERIES: Transaction = {
   category: { major: 'Food and personal items', subcategory: 'Groceries and personal items' },
   category_source: 'plaid',
   is_spending: true,
+  is_manual: false,
   note: null,
 }
 
@@ -136,6 +144,7 @@ export const JUL_TRANSFER: Transaction = {
   category: { major: 'Finances', subcategory: 'Transfers' },
   category_source: 'plaid',
   is_spending: false,
+  is_manual: false,
   note: null,
 }
 
@@ -151,6 +160,7 @@ export const JUN_GROCERIES: Transaction = {
   category: { major: 'Food and personal items', subcategory: 'Groceries and personal items' },
   category_source: 'plaid',
   is_spending: true,
+  is_manual: false,
   note: null,
 }
 
@@ -166,6 +176,7 @@ export const OCT_GROCERIES: Transaction = {
   category: { major: 'Food and personal items', subcategory: 'Groceries and personal items' },
   category_source: 'plaid',
   is_spending: true,
+  is_manual: false,
   note: null,
 }
 

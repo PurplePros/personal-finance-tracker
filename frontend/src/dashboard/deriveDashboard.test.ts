@@ -104,6 +104,7 @@ describe('deriveDashboard', () => {
         plaid_id: 'p',
         plaid_item_id: null,
         holder: 'Catherine',
+        is_manual: false,
       }
       const usdAccount: Account = {
         id: 'a1',
@@ -126,6 +127,7 @@ describe('deriveDashboard', () => {
         plaid_id: 'p',
         plaid_item_id: null,
         holder: 'Catherine',
+        is_manual: false,
       }
       const asset: Account = {
         id: 'a-asset',
@@ -158,6 +160,7 @@ describe('deriveDashboard', () => {
         plaid_id: 'p',
         plaid_item_id: null,
         holder: 'Catherine',
+        is_manual: false,
       }
       const zeroAccount: Account = {
         id: 'a0',

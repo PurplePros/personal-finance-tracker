@@ -6,17 +6,21 @@ class AccountType(StrEnum):
     """Coarse classification of an Account.
 
     Registered accounts (RRSP, TFSA) are ``Investment``; the specific product
-    name is carried by ``Account.name``, not by the type.
+    name is carried by ``Account.name``, not by the type. ``Manual`` accounts
+    belong to Manual Institutions and carry no real balance.
     """
 
     SAVINGS = "Savings"
     CHEQUING = "Chequing"
     CREDIT = "Credit Card"
     INVESTMENT = "Investment"
+    MANUAL = "Manual"
 
 
 # Account types that surface transactions in the Spending view.
-SPENDING_ACCOUNT_TYPES = frozenset({AccountType.CREDIT, AccountType.CHEQUING})
+SPENDING_ACCOUNT_TYPES = frozenset(
+    {AccountType.CREDIT, AccountType.CHEQUING, AccountType.MANUAL}
+)
 
 
 class PlaidConfidence(StrEnum):

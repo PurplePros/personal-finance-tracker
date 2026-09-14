@@ -20,6 +20,7 @@ export const BUDGET_MAJORS = [
 export interface SubcategoryActual {
   subcategory: string | null
   actual_cents: number
+  has_manual: boolean
 }
 
 export interface BudgetRow {
@@ -69,7 +70,10 @@ export function deriveBudget(
   }
 
   // 3. Accumulate actual spending per major -> subcategory.
-  const majorActuals = new Map<string, { total: number; subMap: Map<string | null, number> }>()
+  const majorActuals = new Map<string, {
+    total: number
+    subMap: Map<string | null, { amount: number; hasManual: boolean }>
+  }>()
   for (const txn of monthSpending) {
     const { major, subcategory } = txn.category
     let entry = majorActuals.get(major)
@@ -79,16 +83,21 @@ export function deriveBudget(
     }
     entry.total += txn.amount
     const subKey = subcategory ?? null
-    entry.subMap.set(subKey, (entry.subMap.get(subKey) ?? 0) + txn.amount)
+    const existing = entry.subMap.get(subKey) ?? { amount: 0, hasManual: false }
+    entry.subMap.set(subKey, {
+      amount: existing.amount + txn.amount,
+      hasManual: existing.hasManual || txn.is_manual,
+    })
   }
 
   // 4. Build rows in taxonomy order, excluding Finances.
   const rows: BudgetRow[] = BUDGET_MAJORS.map((major) => {
     const actuals = majorActuals.get(major)
     const subcategories: SubcategoryActual[] = actuals
-      ? Array.from(actuals.subMap.entries()).map(([sub, amt]) => ({
+      ? Array.from(actuals.subMap.entries()).map(([sub, { amount, hasManual }]) => ({
           subcategory: sub,
-          actual_cents: amt,
+          actual_cents: amount,
+          has_manual: hasManual,
         }))
       : []
     return {

@@ -81,8 +81,11 @@ export function deriveDashboard(
   institutions: Institution[],
   accounts: Account[],
 ): DashboardViewModel {
+  // Manual accounts have no real balance and are excluded from net worth and the
+  // Accounts view. Plaid accounts are filtered to CAD only.
   const included = accounts.filter(
-    (account) => account.iso_currency_code === INCLUDED_CURRENCY,
+    (account) =>
+      account.iso_currency_code === INCLUDED_CURRENCY && account.type !== 'Manual',
   )
 
   const accountsByInstitution = new Map<string, Account[]>()
@@ -100,6 +103,7 @@ export function deriveDashboard(
   const groups: InstitutionGroup[] = []
 
   for (const institution of institutions) {
+    if (institution.is_manual) continue
     const own = accountsByInstitution.get(institution.id)
     if (own === undefined || own.length === 0) {
       continue
