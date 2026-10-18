@@ -5,7 +5,7 @@ import uuid
 from decimal import Decimal
 
 import plaid
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from guru.api.models import SPENDING_ACCOUNT_TYPES, AccountType, PlaidConfidence
 from guru.api.plaid import PlaidService
@@ -106,6 +106,7 @@ def _sync_transactions(
     Credit Card accounts are stored; others are ignored. Returns the number of
     added/modified transactions applied.
     """
+    assert institution.plaid_access_token is not None
     result = plaid_service.fetch_transactions(
         institution.plaid_access_token, institution.transactions_cursor
     )
@@ -115,7 +116,7 @@ def _sync_transactions(
     spending_accounts = session.exec(
         select(Account).where(
             Account.institution_id == institution.id,
-            Account.type.in_(list(SPENDING_ACCOUNT_TYPES)),
+            col(Account.type).in_(list(SPENDING_ACCOUNT_TYPES)),
         )
     ).all()
     account_by_plaid_id = {a.plaid_id: a.id for a in spending_accounts}
@@ -167,6 +168,7 @@ def sync_all(session: Session, plaid_service: PlaidService) -> list[dict]:
         if institution.is_manual:
             continue
         try:
+            assert institution.plaid_access_token is not None
             plaid_accounts = plaid_service.list_accounts(institution.plaid_access_token)
         except Exception as e:
             error_code = _extract_plaid_error_code(e)
