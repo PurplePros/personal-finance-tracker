@@ -2,7 +2,15 @@ import uvicorn
 from fastapi import FastAPI
 from sqlmodel import create_engine
 
-from guru.api.routes import accounts, budget, categories, institutions, settings, sync, transactions
+from guru.api.routes import (
+    accounts,
+    budget,
+    categories,
+    institutions,
+    settings,
+    sync,
+    transactions,
+)
 from guru.api.routes import plaid as plaid_routes
 from guru.api.settings import Settings
 
