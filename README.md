@@ -43,30 +43,23 @@ The Plaid client targets the **Production** environment.
 
 ## Running the app
 
+**Backend:**
+
 ```sh
 uv run guru
 ```
 
-This serves the FastAPI app on <http://127.0.0.1:8000>.
+Starts the FastAPI server on <http://127.0.0.1:8000>. Interactive API docs at <http://127.0.0.1:8000/docs>.
 
-### Endpoints
+**Frontend:**
 
-- `GET  /api/institutions` — list linked institutions
-- `GET  /api/institutions/{id}` — a single institution
-- `GET  /api/institutions/{id}/accounts` — accounts for an institution
-- `GET  /api/accounts` — list all accounts (each with `balance`,
-  `iso_currency_code`, and `type`)
-- `GET  /api/accounts/{id}` — a single account
-- `POST /api/sync` — fetch current account data from Plaid for every linked
-  institution and upsert it locally
+```sh
+cd frontend
+npm install   # first time only
+npm run dev
+```
 
-Interactive API docs are available at <http://127.0.0.1:8000/docs>.
-
-> **Note:** linking a new institution (the Plaid Link / public-token exchange
-> flow) is not implemented yet, so `POST /api/sync` only has something to do
-> once an `institution` row with a valid Plaid access token exists in the
-> database. Until the link flow lands, the sync path is exercised end-to-end in
-> the tests against a faked Plaid.
+Opens the Vite dev server at <http://localhost:5173>, proxying API calls to the backend.
 
 ## Testing
 
