@@ -34,6 +34,7 @@ export interface SpendingContextValue {
 
 const SpendingContext = createContext<SpendingContextValue | null>(null)
 
+// oxlint-disable-next-line react/only-export-components -- context files conventionally export both provider and hook
 export function useSpending(): SpendingContextValue {
   const ctx = useContext(SpendingContext)
   if (!ctx) throw new Error('useSpending must be used inside SpendingProvider')
