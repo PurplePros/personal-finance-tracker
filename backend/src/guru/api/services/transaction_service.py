@@ -1,6 +1,7 @@
 import datetime
 import uuid
 from decimal import Decimal
+from typing import cast
 
 from sqlmodel import Session, col, select
 
@@ -37,7 +38,7 @@ def list_transactions(
         select(Transaction)
         .join(Account)
         .where(
-            Account.type.in_(list(SPENDING_ACCOUNT_TYPES)),
+            col(Account.type).in_(list(SPENDING_ACCOUNT_TYPES)),
             Account.iso_currency_code == "CAD",
             col(Transaction.date) >= start,
             col(Transaction.date) <= end,
@@ -72,7 +73,7 @@ def patch_transaction(
     or None if not found. Raises InvalidCategoryError for invalid categories.
     """
     if category is not _UNSET and category is not None:
-        cat = category  # type: ignore[assignment]
+        cat = cast(UserCategory, category)
         if not validate_user_category(cat.major, cat.subcategory):
             raise InvalidCategoryError(
                 f"Category ({cat.major!r}, {cat.subcategory!r}) not in taxonomy"
@@ -84,7 +85,7 @@ def patch_transaction(
 
     if category is not _UNSET:
         if category is not None:
-            cat = category  # type: ignore[assignment]
+            cat = cast(UserCategory, category)
             txn.user_category_major = cat.major
             txn.user_category_subcategory = cat.subcategory
         else:
@@ -92,7 +93,7 @@ def patch_transaction(
             txn.user_category_subcategory = None
 
     if note is not _UNSET:
-        txn.note = note if note else None  # type: ignore[assignment]
+        txn.note = note if isinstance(note, str) else None
 
     session.commit()
     session.refresh(txn)

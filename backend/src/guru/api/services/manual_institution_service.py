@@ -70,7 +70,9 @@ def delete_manual_institution(session: Session, institution_id: uuid.UUID) -> bo
     return True
 
 
-def get_manual_account_id(session: Session, institution_id: uuid.UUID) -> uuid.UUID | None:
+def get_manual_account_id(
+    session: Session, institution_id: uuid.UUID
+) -> uuid.UUID | None:
     """Return the Manual Account id for a Manual Institution, or None."""
     account = session.exec(
         select(Account).where(

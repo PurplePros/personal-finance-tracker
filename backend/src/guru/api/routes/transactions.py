@@ -8,9 +8,9 @@ from guru.api.dependencies import get_session
 from guru.api.models import UserCategory
 from guru.api.services.manual_institution_service import get_manual_account_id
 from guru.api.services.transaction_service import (
+    _UNSET,
     InvalidCategoryError,
     NotManualTransactionError,
-    _UNSET,
     create_manual_transaction,
     delete_manual_transaction,
     list_transactions,
@@ -85,8 +85,10 @@ def create_manual(
         raise HTTPException(status_code=422, detail="amount_cents is required")
     if not date_raw:
         raise HTTPException(status_code=422, detail="date is required")
-    if not isinstance(category_raw, dict) or "major" not in category_raw or "subcategory" not in category_raw:
-        raise HTTPException(status_code=422, detail="category with major and subcategory is required")
+    if not isinstance(category_raw, dict) or "major" not in category_raw or "subcategory" not in category_raw:  # noqa: E501
+        raise HTTPException(
+            status_code=422, detail="category with major and subcategory is required"
+        )
 
     try:
         institution_id = uuid.UUID(str(institution_id_raw))
@@ -102,7 +104,9 @@ def create_manual(
     if account_id is None:
         raise HTTPException(status_code=404, detail="Manual institution not found")
 
-    category = UserCategory(major=category_raw["major"], subcategory=category_raw["subcategory"])
+    category = UserCategory(
+        major=category_raw["major"], subcategory=category_raw["subcategory"]
+    )
 
     try:
         return create_manual_transaction(
@@ -138,15 +142,19 @@ def update_manual(
         raise HTTPException(status_code=422, detail="amount_cents is required")
     if not date_raw:
         raise HTTPException(status_code=422, detail="date is required")
-    if not isinstance(category_raw, dict) or "major" not in category_raw or "subcategory" not in category_raw:
-        raise HTTPException(status_code=422, detail="category with major and subcategory is required")
+    if not isinstance(category_raw, dict) or "major" not in category_raw or "subcategory" not in category_raw:  # noqa: E501
+        raise HTTPException(
+            status_code=422, detail="category with major and subcategory is required"
+        )
 
     try:
         date = datetime.date.fromisoformat(str(date_raw))
     except ValueError:
         raise HTTPException(status_code=422, detail="date must be YYYY-MM-DD")
 
-    category = UserCategory(major=category_raw["major"], subcategory=category_raw["subcategory"])
+    category = UserCategory(
+        major=category_raw["major"], subcategory=category_raw["subcategory"]
+    )
 
     try:
         result = update_manual_transaction(

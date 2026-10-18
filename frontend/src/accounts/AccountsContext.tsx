@@ -82,6 +82,7 @@ export interface AccountsContextValue {
 
 const AccountsContext = createContext<AccountsContextValue | null>(null)
 
+// oxlint-disable-next-line react/only-export-components -- context files conventionally export both provider and hook
 export function useAccounts(): AccountsContextValue {
   const ctx = useContext(AccountsContext)
   if (!ctx) throw new Error('useAccounts must be used inside AccountsProvider')

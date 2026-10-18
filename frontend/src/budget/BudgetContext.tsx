@@ -19,6 +19,7 @@ export interface BudgetContextValue {
 
 const BudgetContext = createContext<BudgetContextValue | null>(null)
 
+// oxlint-disable-next-line react/only-export-components -- context files conventionally export both provider and hook
 export function useBudget(): BudgetContextValue {
   const ctx = useContext(BudgetContext)
   if (!ctx) throw new Error('useBudget must be used inside BudgetProvider')
